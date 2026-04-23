@@ -1,8 +1,11 @@
+import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
 import { stripe } from '../../config/stripe';
 import { env } from '../../config/env';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/AppError';
+import { findOrThrow } from '../../utils/db';
 
+// Local types to avoid Stripe v22 namespace issues
 type WebhookSession = {
   customer: string;
   subscription: string;
@@ -13,26 +16,30 @@ type WebhookSubscription = {
   id: string;
   status: string;
   cancel_at_period_end: boolean;
-  billing_cycle_anchor: number;
+};
+
+const PLAN_DURATION_MS: Record<'MONTHLY' | 'YEARLY', number> = {
+  MONTHLY: 30 * 24 * 60 * 60 * 1000,
+  YEARLY: 365 * 24 * 60 * 60 * 1000,
 };
 
 export class PaymentService {
   async createCheckoutSession(userId: string, plan: 'MONTHLY' | 'YEARLY') {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new AppError('User not found', 404);
+    const user = await findOrThrow(
+      prisma.user.findUnique({ where: { id: userId } }),
+      'User not found',
+    );
 
-    let customerId: string | undefined;
-    const subscription = await prisma.subscription.findUnique({ where: { userId } });
-    if (subscription?.stripeCustomerId) {
-      customerId = subscription.stripeCustomerId;
-    } else {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name,
-        metadata: { userId },
-      });
-      customerId = customer.id;
-    }
+    const existingSub = await prisma.subscription.findUnique({ where: { userId } });
+    const customerId =
+      existingSub?.stripeCustomerId ??
+      (
+        await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: { userId },
+        })
+      ).id;
 
     const priceId =
       plan === 'MONTHLY' ? env.STRIPE_MONTHLY_PRICE_ID : env.STRIPE_YEARLY_PRICE_ID;
@@ -50,7 +57,7 @@ export class PaymentService {
     return { sessionId: session.id, url: session.url };
   }
 
-  async handleWebhook(payload: Buffer, signature: string) {
+  async handleWebhook(payload: Buffer, signature: string): Promise<void> {
     let event: ReturnType<typeof stripe.webhooks.constructEvent>;
 
     try {
@@ -77,11 +84,16 @@ export class PaymentService {
   }
 
   async cancelSubscription(userId: string) {
-    const subscription = await prisma.subscription.findUnique({ where: { userId } });
-    if (!subscription?.stripeSubscriptionId) {
-      throw new AppError('No active subscription', 404);
+    const subscription = await findOrThrow(
+      prisma.subscription.findUnique({ where: { userId } }),
+      'No active subscription found',
+    );
+
+    if (!subscription.stripeSubscriptionId) {
+      throw new AppError('No Stripe subscription linked to this account', 404);
     }
 
+    // Mark cancel-at-period-end in Stripe — the webhook reconciles final DB state
     await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
       cancel_at_period_end: true,
     });
@@ -92,48 +104,71 @@ export class PaymentService {
     });
   }
 
-  private async handleCheckoutComplete(session: WebhookSession) {
-    const userId = session.metadata?.userId;
-    const plan = session.metadata?.plan as 'MONTHLY' | 'YEARLY';
+  // ── Webhook handlers ──────────────────────────────────────────────────────
+
+  private async handleCheckoutComplete(session: WebhookSession): Promise<void> {
+    const { userId, plan } = session.metadata ?? {};
     if (!userId || !plan) return;
 
-    const anchor = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const typedPlan = plan as 'MONTHLY' | 'YEARLY';
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + PLAN_DURATION_MS[typedPlan]);
 
-    await prisma.subscription.upsert({
-      where: { userId },
-      create: {
-        userId,
-        plan: plan === 'MONTHLY' ? 'MONTHLY' : 'YEARLY',
-        status: 'ACTIVE',
-        stripeCustomerId: session.customer,
-        stripeSubscriptionId: session.subscription,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: anchor,
-      },
-      update: {
-        plan: plan === 'MONTHLY' ? 'MONTHLY' : 'YEARLY',
-        status: 'ACTIVE',
-        stripeSubscriptionId: session.subscription,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: anchor,
-      },
+    // Atomic upsert: if the DB write fails after Stripe confirms payment,
+    // Stripe will retry the webhook and the transaction prevents partial state.
+    await prisma.$transaction(async (tx) => {
+      await tx.subscription.upsert({
+        where: { userId },
+        create: {
+          userId,
+          plan: typedPlan as SubscriptionPlan,
+          status: SubscriptionStatus.ACTIVE,
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: session.subscription,
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+        },
+        update: {
+          plan: typedPlan as SubscriptionPlan,
+          status: SubscriptionStatus.ACTIVE,
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: session.subscription,
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+        },
+      });
     });
   }
 
-  private async handleSubscriptionUpdated(sub: WebhookSubscription) {
-    await prisma.subscription.updateMany({
-      where: { stripeSubscriptionId: sub.id },
-      data: {
-        status: sub.status === 'active' ? 'ACTIVE' : 'INACTIVE',
-        cancelAtPeriodEnd: sub.cancel_at_period_end,
-      },
+  private async handleSubscriptionUpdated(sub: WebhookSubscription): Promise<void> {
+    const status =
+      sub.status === 'active'
+        ? SubscriptionStatus.ACTIVE
+        : sub.status === 'canceled'
+          ? SubscriptionStatus.CANCELLED
+          : SubscriptionStatus.INACTIVE;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.subscription.updateMany({
+        where: { stripeSubscriptionId: sub.id },
+        data: { status, cancelAtPeriodEnd: sub.cancel_at_period_end },
+      });
     });
   }
 
-  private async handleSubscriptionDeleted(sub: WebhookSubscription) {
-    await prisma.subscription.updateMany({
-      where: { stripeSubscriptionId: sub.id },
-      data: { status: 'CANCELLED', plan: 'FREE' },
+  private async handleSubscriptionDeleted(sub: WebhookSubscription): Promise<void> {
+    // Fully cancelled — downgrade to FREE plan atomically
+    await prisma.$transaction(async (tx) => {
+      await tx.subscription.updateMany({
+        where: { stripeSubscriptionId: sub.id },
+        data: {
+          status: SubscriptionStatus.CANCELLED,
+          plan: SubscriptionPlan.FREE,
+          cancelAtPeriodEnd: false,
+        },
+      });
     });
   }
 }

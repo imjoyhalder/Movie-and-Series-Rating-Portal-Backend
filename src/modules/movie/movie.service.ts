@@ -1,8 +1,10 @@
-import { prisma } from '../../config/database';
-import { AppError } from '../../utils/AppError';
-import { getPagination, buildMeta } from '../../utils/response';
-import { CreateMediaDto, UpdateMediaDto, MediaFilterQuery } from './movie.interface';
 import { Prisma } from '@prisma/client';
+import { prisma } from '../../config/database';
+import { getPagination, buildMeta } from '../../utils/response';
+import { findOrThrow } from '../../utils/db';
+import { CreateMediaDto, UpdateMediaDto, MediaFilterQuery } from './movie.interface';
+
+const REVIEW_USER_SELECT = { id: true, name: true, image: true } as const;
 
 export class MovieService {
   async create(dto: CreateMediaDto) {
@@ -39,9 +41,7 @@ export class MovieService {
         skip,
         take,
         orderBy,
-        include: {
-          _count: { select: { reviews: true } },
-        },
+        include: { _count: { select: { reviews: true } } },
       }),
       prisma.media.count({ where }),
     ]);
@@ -50,34 +50,33 @@ export class MovieService {
   }
 
   async findOne(id: string) {
-    const media = await prisma.media.findUnique({
-      where: { id, isPublished: true },
-      include: {
-        _count: { select: { reviews: true } },
-        reviews: {
-          where: { status: 'APPROVED' },
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            user: { select: { id: true, name: true, avatar: true } },
-            _count: { select: { likes: true, comments: true } },
+    return findOrThrow(
+      prisma.media.findUnique({
+        where: { id, isPublished: true },
+        include: {
+          _count: { select: { reviews: true } },
+          reviews: {
+            where: { status: 'APPROVED' },
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: { select: REVIEW_USER_SELECT },
+              _count: { select: { likes: true, comments: true } },
+            },
           },
         },
-      },
-    });
-    if (!media) throw new AppError('Media not found', 404);
-    return media;
+      }),
+      'Media not found',
+    );
   }
 
   async update(id: string, dto: UpdateMediaDto) {
-    const media = await prisma.media.findUnique({ where: { id } });
-    if (!media) throw new AppError('Media not found', 404);
+    await findOrThrow(prisma.media.findUnique({ where: { id } }), 'Media not found');
     return prisma.media.update({ where: { id }, data: dto });
   }
 
   async delete(id: string) {
-    const media = await prisma.media.findUnique({ where: { id } });
-    if (!media) throw new AppError('Media not found', 404);
+    await findOrThrow(prisma.media.findUnique({ where: { id } }), 'Media not found');
     await prisma.media.delete({ where: { id } });
   }
 

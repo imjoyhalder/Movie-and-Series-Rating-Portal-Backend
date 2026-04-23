@@ -3,7 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import { toNodeHandler } from 'better-auth/node';
 import { env } from './config/env';
+import { auth } from './config/auth';
 import { errorHandler } from './middleware/error.middleware';
 import { notFoundHandler } from './middleware/notFound.middleware';
 import apiRoutes from './routes';
@@ -17,12 +19,22 @@ app.use(
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-  })
+  }),
 );
 app.use(cookieParser());
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Raw body for Stripe webhook — must come before express.json()
+// Better Auth handles all /api/auth/* routes — must be BEFORE express.json()
+// because Better Auth parses its own request bodies.
+const betterAuthHandler = toNodeHandler(auth);
+app.use((req: Request, res: Response, next) => {
+  if (req.path.startsWith('/api/auth')) {
+    return betterAuthHandler(req, res);
+  }
+  return next();
+});
+
+// Raw body for Stripe webhook — must also remain before express.json()
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -32,7 +44,7 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// All API routes — /api prefix applied once here
+// All domain API routes — /api prefix applied once here
 app.use('/api', apiRoutes);
 
 app.use(notFoundHandler);

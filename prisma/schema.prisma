@@ -36,77 +36,128 @@ enum SubscriptionPlan {
   YEARLY
 }
 
+// ─────────────────────────────────────────
+// Better Auth core models
+// ─────────────────────────────────────────
+
 model User {
-  id               String    @id @default(cuid())
-  name             String
-  email            String    @unique
-  password         String?
-  avatar           String?
-  role             Role      @default(USER)
-  isEmailVerified  Boolean   @default(false)
-  emailVerifyToken String?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  emailVerified   Boolean  @default(false)
+  image           String?
+  role            Role     @default(USER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  reviews       Review[]
-  comments      Comment[]
-  likes         ReviewLike[]
-  watchlist     Watchlist[]
-  subscription  Subscription?
-  sessions      Session[]
+  sessions     Session[]
+  accounts     Account[]
+  reviews      Review[]
+  comments     Comment[]
+  likes        ReviewLike[]
+  watchlist    Watchlist[]
+  subscription Subscription?
 
+  @@index([email])
   @@map("users")
 }
 
 model Session {
   id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
   expiresAt DateTime
+  token     String   @unique
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([token])
+  @@index([userId])
   @@map("sessions")
 }
 
+// OAuth provider tokens and credentials (Better Auth)
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([accountId, providerId])
+  @@map("accounts")
+}
+
+// Email verification & password-reset tokens (Better Auth)
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ─────────────────────────────────────────
+// Domain models
+// ─────────────────────────────────────────
+
 model Media {
-  id              String    @id @default(cuid())
-  title           String
-  synopsis        String
-  type            MediaType
-  genre           String[]
-  releaseYear     Int
-  director        String
-  cast            String[]
+  id                 String    @id @default(cuid())
+  title              String
+  synopsis           String
+  type               MediaType
+  genre              String[]
+  releaseYear        Int
+  director           String
+  cast               String[]
   streamingPlatforms String[]
-  posterUrl       String?
-  trailerUrl      String?
-  streamingUrl    String?
-  pricing         String    @default("free")
-  isPublished     Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  posterUrl          String?
+  trailerUrl         String?
+  streamingUrl       String?
+  pricing            String    @default("free")
+  isPublished        Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   reviews   Review[]
   watchlist Watchlist[]
 
+  @@index([type])
+  @@index([isPublished])
+  @@index([pricing])
+  @@index([releaseYear])
   @@map("media")
 }
 
 model Review {
-  id           String       @id @default(cuid())
-  userId       String
-  mediaId      String
-  rating       Int
-  content      String
-  tags         String[]
-  hasSpoiler   Boolean      @default(false)
-  status       ReviewStatus @default(PENDING)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  userId     String
+  mediaId    String
+  rating     Int
+  content    String
+  tags       String[]
+  hasSpoiler Boolean      @default(false)
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   media    Media        @relation(fields: [mediaId], references: [id], onDelete: Cascade)
@@ -114,6 +165,9 @@ model Review {
   likes    ReviewLike[]
 
   @@unique([userId, mediaId])
+  @@index([mediaId])
+  @@index([userId])
+  @@index([status])
   @@map("reviews")
 }
 
@@ -131,6 +185,9 @@ model Comment {
   parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies Comment[] @relation("CommentReplies")
 
+  @@index([reviewId])
+  @@index([userId])
+  @@index([parentId])
   @@map("comments")
 }
 
@@ -144,6 +201,7 @@ model ReviewLike {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([reviewId, userId])
+  @@index([reviewId])
   @@map("review_likes")
 }
 
@@ -157,6 +215,7 @@ model Watchlist {
   media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mediaId])
+  @@index([userId])
   @@map("watchlists")
 }
 
@@ -175,5 +234,7 @@ model Subscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([status])
   @@map("subscriptions")
 }

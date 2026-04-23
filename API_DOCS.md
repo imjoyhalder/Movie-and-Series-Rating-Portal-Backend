@@ -11,8 +11,11 @@
 | Level | Requirement |
 |---|---|
 | PUBLIC | No token required |
-| USER | Valid access token (`authenticate` middleware) |
-| ADMIN | Valid access token with `role: ADMIN` (`authenticate + requireAdmin`) |
+| USER | Valid access token (`authenticate`) |
+| VERIFIED USER | Valid access token + email verified (`authenticate + requireVerified`) |
+| ADMIN | Valid access token + email verified + `role: ADMIN` (`authenticate + requireVerified + requireAdmin`) |
+
+> All mutating USER routes require a verified email. Unverified users receive `403 Forbidden` with message `"Please verify your email address before proceeding"`.
 
 ---
 
@@ -22,7 +25,7 @@
 {
   "success": true,
   "message": "Descriptive message",
-  "data": { },
+  "data": {},
   "meta": {
     "total": 100,
     "page": 1,
@@ -32,7 +35,7 @@
 }
 ```
 
-Error responses follow the same envelope with `"success": false` and an `"error"` field.
+Error envelope uses `"success": false` with an `"error"` field.
 
 ---
 
@@ -40,9 +43,8 @@ Error responses follow the same envelope with `"success": false` and an `"error"
 
 ### `GET /health`
 
-Check server status.
+**Access:** PUBLIC
 
-**Access:** PUBLIC  
 **Response:**
 ```json
 { "status": "ok", "timestamp": "2026-04-23T00:00:00.000Z" }
@@ -54,7 +56,7 @@ Check server status.
 
 ### `POST /api/auth/register`
 
-Register a new user account.
+Register a new account. Sends a verification email — the user must verify before logging in.
 
 **Access:** PUBLIC
 
@@ -70,17 +72,61 @@ Register a new user account.
 | Field | Type | Rules |
 |---|---|---|
 | `name` | string | 2–100 characters |
-| `email` | string | Valid email format |
-| `password` | string | 8+ chars, at least 1 uppercase, 1 number |
+| `email` | string | Valid email |
+| `password` | string | 8+ chars, 1 uppercase, 1 number |
 
 **Response:** `201 Created`
 ```json
 {
   "success": true,
-  "message": "Registration successful",
+  "message": "Registration successful. Please check your email to verify your account."
+}
+```
+
+---
+
+### `GET /api/auth/verify-email?token=<token>`
+
+Verify email using the token sent during registration. Auto-logs in the user on success.
+
+**Access:** PUBLIC
+
+**Query Params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `token` | string | Token from the verification email |
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Email verified successfully. You are now logged in.",
   "data": {
-    "user": { "id": "...", "name": "John Doe", "email": "john@example.com", "role": "USER" }
+    "user": { "id": "...", "name": "John Doe", "email": "john@example.com", "role": "USER" },
+    "accessToken": "eyJ..."
   }
+}
+```
+
+---
+
+### `POST /api/auth/resend-verification`
+
+Resend the email verification link. Silent if email is not found (prevents enumeration).
+
+**Access:** PUBLIC
+
+**Request Body:**
+```json
+{ "email": "john@example.com" }
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "If that email exists and is unverified, a new verification link has been sent"
 }
 ```
 
@@ -88,7 +134,7 @@ Register a new user account.
 
 ### `POST /api/auth/login`
 
-Log in with email and password. Sets `accessToken` and `refreshToken` as httpOnly cookies.
+Log in with email and password. Requires a verified email. Sets `refreshToken` httpOnly cookie.
 
 **Access:** PUBLIC
 
@@ -112,13 +158,20 @@ Log in with email and password. Sets `accessToken` and `refreshToken` as httpOnl
 }
 ```
 
+> **Note:** Returns `403 Forbidden` with `"Please verify your email address before logging in"` if email is not verified.
+
 ---
 
 ### `POST /api/auth/refresh`
 
-Issue a new access token using the stored refresh token cookie.
+Exchange the refresh token cookie for a new access token.
 
-**Access:** PUBLIC (refresh token in cookie)
+**Access:** PUBLIC (refresh token in cookie or body)
+
+**Request Body (alternative to cookie):**
+```json
+{ "refreshToken": "eyJ..." }
+```
 
 **Response:** `200 OK`
 ```json
@@ -133,7 +186,7 @@ Issue a new access token using the stored refresh token cookie.
 
 ### `POST /api/auth/logout`
 
-Invalidate the current session and clear auth cookies.
+Invalidate the session and clear the refresh token cookie.
 
 **Access:** PUBLIC (token optional)
 
@@ -146,7 +199,7 @@ Invalidate the current session and clear auth cookies.
 
 ### `POST /api/auth/forgot-password`
 
-Send a password reset email with a one-time token.
+Send a password reset link to the given email. Silent if not found.
 
 **Access:** PUBLIC
 
@@ -157,14 +210,14 @@ Send a password reset email with a one-time token.
 
 **Response:** `200 OK`
 ```json
-{ "success": true, "message": "Password reset email sent" }
+{ "success": true, "message": "If that email exists, a reset link has been sent" }
 ```
 
 ---
 
 ### `POST /api/auth/reset-password`
 
-Reset password using the token from the reset email.
+Reset password using the token from the reset email. Invalidates all existing sessions.
 
 **Access:** PUBLIC
 
@@ -176,22 +229,58 @@ Reset password using the token from the reset email.
 }
 ```
 
+| Field | Type | Rules |
+|---|---|---|
+| `token` | string | Required |
+| `password` | string | 8+ chars, 1 uppercase, 1 number |
+
 **Response:** `200 OK`
 ```json
-{ "success": true, "message": "Password reset successful" }
+{ "success": true, "message": "Password reset successfully" }
 ```
+
+---
+
+### `GET /api/auth/google`
+
+Initiate Google OAuth flow. Redirects the browser to Google's consent screen.
+
+**Access:** PUBLIC
+
+**Response:** `302 Redirect` → Google OAuth consent page
+
+> Set this as the `href` of a "Login with Google" button. Do not call via `fetch`/`axios` — use a direct browser navigation.
+
+---
+
+### `GET /api/auth/google/callback`
+
+Google OAuth callback. Handled server-side — exchanges the authorization code, creates or links the account, issues tokens, and redirects to the frontend.
+
+**Access:** PUBLIC (called by Google, not by client code)
+
+**Response:** `302 Redirect` → `{FRONTEND_URL}/auth/callback?token=<accessToken>`
+
+The `refreshToken` is set as an httpOnly cookie. The frontend reads `token` from the query string and stores it as the access token.
+
+> On error: redirects to `{FRONTEND_URL}/login?error=google_auth_failed`
+
+**Google account linking behavior:**
+- New Google user → account created with `isEmailVerified: true`
+- Existing email user (password) → Google ID linked to the account, email marked verified
+- Returning Google user → login as usual
 
 ---
 
 ## Users — `/api/users`
 
-All endpoints require **USER** access.
+All endpoints require **VERIFIED USER** access.
 
 ### `GET /api/users/profile`
 
 Get the authenticated user's profile.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Response:** `200 OK`
 ```json
@@ -214,7 +303,7 @@ Get the authenticated user's profile.
 
 Update the authenticated user's profile.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:** _(all fields optional)_
 ```json
@@ -240,7 +329,7 @@ Update the authenticated user's profile.
 
 Change the authenticated user's password.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
@@ -253,7 +342,7 @@ Change the authenticated user's password.
 | Field | Type | Rules |
 |---|---|---|
 | `currentPassword` | string | Required |
-| `newPassword` | string | 8+ chars, at least 1 uppercase, 1 number |
+| `newPassword` | string | 8+ chars, 1 uppercase, 1 number |
 
 **Response:** `200 OK`
 ```json
@@ -266,23 +355,18 @@ Change the authenticated user's password.
 
 ### `GET /api/movies/featured`
 
-Get featured/promoted media items.
-
 **Access:** PUBLIC
 
 **Response:** `200 OK`
 ```json
-{
-  "success": true,
-  "data": [ { "id": "...", "title": "...", "type": "MOVIE", ... } ]
-}
+{ "success": true, "data": [ { "id": "...", "title": "...", "type": "MOVIE", ... } ] }
 ```
 
 ---
 
 ### `GET /api/movies`
 
-Browse and search all published media with optional filters.
+Browse and search published media.
 
 **Access:** PUBLIC
 
@@ -291,7 +375,7 @@ Browse and search all published media with optional filters.
 | Param | Type | Description |
 |---|---|---|
 | `search` | string | Full-text search on title/synopsis |
-| `type` | `MOVIE` \| `SERIES` | Filter by media type |
+| `type` | `MOVIE` \| `SERIES` | Filter by type |
 | `genre` | string | Filter by genre |
 | `minYear` | number | Minimum release year |
 | `maxYear` | number | Maximum release year |
@@ -312,20 +396,15 @@ Browse and search all published media with optional filters.
 
 ### `GET /api/movies/:id`
 
-Get a single media item by ID.
+Get a single media item.
 
 **Access:** PUBLIC
-
-**Response:** `200 OK`
-```json
-{ "success": true, "data": { "id": "...", "title": "...", "reviews": [...] } }
-```
 
 ---
 
 ### `POST /api/movies`
 
-Create a new media entry.
+Create a media entry.
 
 **Access:** ADMIN
 
@@ -338,7 +417,7 @@ Create a new media entry.
   "genre": ["Sci-Fi", "Thriller"],
   "releaseYear": 2010,
   "director": "Christopher Nolan",
-  "cast": ["Leonardo DiCaprio", "Joseph Gordon-Levitt"],
+  "cast": ["Leonardo DiCaprio"],
   "streamingPlatforms": ["Netflix"],
   "posterUrl": "https://example.com/poster.jpg",
   "trailerUrl": "https://youtube.com/watch?v=...",
@@ -352,38 +431,27 @@ Create a new media entry.
 | `title` | string | Required |
 | `synopsis` | string | 10+ characters |
 | `type` | enum | `MOVIE` or `SERIES` |
-| `genre` | string[] | At least 1 item |
-| `releaseYear` | integer | 1888 – (current year + 2) |
+| `genre` | string[] | 1+ items |
+| `releaseYear` | integer | 1888 – current year + 2 |
 | `director` | string | Required |
-| `cast` | string[] | At least 1 item |
-| `streamingPlatforms` | string[] | At least 1 item |
+| `cast` | string[] | 1+ items |
+| `streamingPlatforms` | string[] | 1+ items |
 | `posterUrl` | string | Valid URL (optional) |
 | `trailerUrl` | string | Valid URL (optional) |
 | `streamingUrl` | string | Valid URL (optional) |
 | `pricing` | enum | `free` or `premium` (default: `free`) |
 
 **Response:** `201 Created`
-```json
-{ "success": true, "message": "Media created", "data": { ...media } }
-```
 
 ---
 
 ### `PATCH /api/movies/:id`
 
-Update an existing media entry.
+Update a media entry.
 
 **Access:** ADMIN
 
-**Request Body:** _(same fields as POST, all optional, plus)_
-```json
-{ "isPublished": true }
-```
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Media updated", "data": { ...updatedMedia } }
-```
+**Request Body:** same fields as POST (all optional) + `isPublished: boolean`
 
 ---
 
@@ -393,31 +461,17 @@ Delete a media entry.
 
 **Access:** ADMIN
 
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Media deleted" }
-```
-
 ---
 
 ## Reviews — `/api/reviews`
 
 ### `GET /api/reviews`
 
-List all approved reviews (paginated).
+List all approved reviews.
 
 **Access:** PUBLIC
 
-**Query Parameters:** `page`, `limit`, `mediaId` (filter by media)
-
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "rating": 8, "content": "...", "user": {...}, "media": {...} } ],
-  "meta": { "total": 30, "page": 1, "limit": 10, "totalPages": 3 }
-}
-```
+**Query Parameters:** `page`, `limit`, `mediaId`
 
 ---
 
@@ -425,80 +479,54 @@ List all approved reviews (paginated).
 
 Get the authenticated user's own reviews.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "data": [ { ...review } ] }
-```
+**Access:** VERIFIED USER
 
 ---
 
 ### `GET /api/reviews/:id`
 
-Get a single review by ID.
+Get a single review.
 
 **Access:** PUBLIC
-
-**Response:** `200 OK`
-```json
-{ "success": true, "data": { "id": "...", "rating": 8, "content": "...", "likeCount": 12 } }
-```
 
 ---
 
 ### `POST /api/reviews`
 
-Submit a new review for a media item. One review per user per media item.
+Submit a review. One review per user per media item.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
 {
   "mediaId": "clx...",
   "rating": 8,
-  "content": "This movie was absolutely brilliant...",
-  "tags": ["must-watch", "classic"],
+  "content": "This movie was brilliant...",
+  "tags": ["must-watch"],
   "hasSpoiler": false
 }
 ```
 
 | Field | Type | Rules |
 |---|---|---|
-| `mediaId` | string | Required — valid media ID |
+| `mediaId` | string | Required |
 | `rating` | integer | 1–10 |
 | `content` | string | 10–5000 characters |
 | `tags` | string[] | Optional (default: `[]`) |
 | `hasSpoiler` | boolean | Optional (default: `false`) |
 
-**Response:** `201 Created`
-```json
-{ "success": true, "message": "Review submitted for approval", "data": { ...review } }
-```
+**Response:** `201 Created` — review starts with `status: "PENDING"` (requires admin approval)
 
 ---
 
 ### `PATCH /api/reviews/:id`
 
-Update own review. Users can only edit their own reviews.
+Update own review.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
-**Request Body:** _(all fields optional)_
-```json
-{
-  "rating": 9,
-  "content": "On reflection, even better than I first thought...",
-  "tags": ["masterpiece"],
-  "hasSpoiler": true
-}
-```
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Review updated", "data": { ...updatedReview } }
-```
+**Request Body:** same fields as POST (all optional)
 
 ---
 
@@ -506,25 +534,15 @@ Update own review. Users can only edit their own reviews.
 
 Delete own review.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Review deleted" }
-```
+**Access:** VERIFIED USER
 
 ---
 
 ### `POST /api/reviews/:id/like`
 
-Toggle like on a review (like if not liked, unlike if already liked).
+Toggle like on a review.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Review liked" }
-```
+**Access:** VERIFIED USER
 
 ---
 
@@ -532,73 +550,44 @@ Toggle like on a review (like if not liked, unlike if already liked).
 
 ### `GET /api/comments/review/:reviewId`
 
-Get all comments for a specific review (supports nested/threaded replies).
+Get all comments for a review (threaded).
 
 **Access:** PUBLIC
-
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "...",
-      "content": "Great review!",
-      "user": { "id": "...", "name": "Jane" },
-      "replies": [ { ...nestedComment } ]
-    }
-  ]
-}
-```
 
 ---
 
 ### `POST /api/comments`
 
-Post a comment on a review. Optionally reply to an existing comment.
+Post a comment. Optionally reply to an existing comment.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
 {
   "reviewId": "clx...",
-  "content": "I completely agree with this take.",
+  "content": "Great review!",
   "parentId": "clx..."
 }
 ```
 
 | Field | Type | Rules |
 |---|---|---|
-| `reviewId` | string | Required — valid review ID |
+| `reviewId` | string | Required |
 | `content` | string | 1–1000 characters |
-| `parentId` | string | Optional — ID of comment being replied to |
-
-**Response:** `201 Created`
-```json
-{ "success": true, "message": "Comment posted", "data": { ...comment } }
-```
+| `parentId` | string | Optional — reply target |
 
 ---
 
 ### `PATCH /api/comments/:id`
 
-Edit own comment. Users can only edit their own comments.
+Edit own comment.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
-{ "content": "Updated comment text." }
-```
-
-| Field | Type | Rules |
-|---|---|---|
-| `content` | string | 1–1000 characters |
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Comment updated", "data": { ...updatedComment } }
+{ "content": "Updated text." }
 ```
 
 ---
@@ -607,56 +596,34 @@ Edit own comment. Users can only edit their own comments.
 
 Delete own comment.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Comment deleted" }
-```
+**Access:** VERIFIED USER
 
 ---
 
 ## Watchlist — `/api/watchlist`
 
-All endpoints require **USER** access.
+All endpoints require **VERIFIED USER** access.
 
 ### `GET /api/watchlist`
 
-Get the authenticated user's watchlist.
+Get the user's watchlist.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [
-    { "id": "...", "media": { "id": "...", "title": "Inception", "type": "MOVIE", ... } }
-  ]
-}
-```
+**Access:** VERIFIED USER
 
 ---
 
 ### `POST /api/watchlist/toggle`
 
-Add a media item to the watchlist, or remove it if already present.
+Add or remove a media item from the watchlist.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
 { "mediaId": "clx..." }
 ```
 
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Added to watchlist" }
-```
-or
-```json
-{ "success": true, "message": "Removed from watchlist" }
-```
+**Response:** `200 OK` — message is `"Added to watchlist"` or `"Removed from watchlist"`
 
 ---
 
@@ -664,12 +631,7 @@ or
 
 Remove a specific media item from the watchlist.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Removed from watchlist" }
-```
+**Access:** VERIFIED USER
 
 ---
 
@@ -677,12 +639,10 @@ Remove a specific media item from the watchlist.
 
 ### `POST /api/payments/webhook`
 
-Stripe webhook endpoint. Raw body required — handled internally; do not call from your application.
+Stripe webhook — consumed by Stripe only, not by client apps.
 
-**Access:** PUBLIC (Stripe-signed, verified by webhook secret)  
-**Content-Type:** `application/json` (raw, not parsed)
-
-> **Note:** This endpoint is consumed by Stripe only, not by client applications.
+**Access:** PUBLIC (verified by Stripe signature header)  
+**Content-Type:** raw body (`application/json`)
 
 ---
 
@@ -690,7 +650,7 @@ Stripe webhook endpoint. Raw body required — handled internally; do not call f
 
 Create a Stripe Checkout session to start a subscription.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Request Body:**
 ```json
@@ -713,9 +673,9 @@ Create a Stripe Checkout session to start a subscription.
 
 ### `GET /api/payments/subscription`
 
-Get the authenticated user's current subscription details.
+Get current subscription details.
 
-**Access:** USER
+**Access:** VERIFIED USER
 
 **Response:** `200 OK`
 ```json
@@ -734,24 +694,19 @@ Get the authenticated user's current subscription details.
 
 ### `POST /api/payments/subscription/cancel`
 
-Cancel the authenticated user's active subscription at the end of the current billing period.
+Cancel subscription at end of current billing period.
 
-**Access:** USER
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Subscription cancelled" }
-```
+**Access:** VERIFIED USER
 
 ---
 
 ## Admin — `/api/admin`
 
-All endpoints require **ADMIN** access.
+All endpoints require **ADMIN** access (verified email + ADMIN role).
 
 ### `GET /api/admin/dashboard`
 
-Get platform-wide statistics for the admin dashboard.
+Platform statistics.
 
 **Access:** ADMIN
 
@@ -775,36 +730,19 @@ Get platform-wide statistics for the admin dashboard.
 
 ### `GET /api/admin/reviews`
 
-Get all reviews across the platform (all statuses).
+All reviews across all statuses.
 
 **Access:** ADMIN
 
 **Query Parameters:** `page`, `limit`, `status` (`PENDING` | `APPROVED` | `UNPUBLISHED`)
 
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "status": "PENDING", "user": {...}, "media": {...} } ],
-  "meta": { "total": 430, "page": 1, "limit": 10, "totalPages": 43 }
-}
-```
-
 ---
 
 ### `GET /api/admin/reviews/pending`
 
-Get only reviews awaiting moderation.
+Reviews awaiting moderation.
 
 **Access:** ADMIN
-
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "status": "PENDING", ... } ]
-}
-```
 
 ---
 
@@ -823,35 +761,21 @@ Approve or unpublish a review.
 |---|---|---|
 | `status` | enum | `APPROVED` or `UNPUBLISHED` |
 
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Review moderated", "data": { ...updatedReview } }
-```
-
 ---
 
 ### `GET /api/admin/users`
 
-Get all registered users.
+All registered users.
 
 **Access:** ADMIN
 
 **Query Parameters:** `page`, `limit`, `role` (`USER` | `ADMIN`)
 
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "name": "...", "email": "...", "role": "USER" } ],
-  "meta": { "total": 1200, "page": 1, "limit": 10, "totalPages": 120 }
-}
-```
-
 ---
 
 ### `PATCH /api/admin/users/:id/role`
 
-Promote or demote a user's role.
+Promote or demote a user.
 
 **Access:** ADMIN
 
@@ -860,46 +784,23 @@ Promote or demote a user's role.
 { "role": "ADMIN" }
 ```
 
-| Field | Type | Values |
-|---|---|---|
-| `role` | enum | `USER` or `ADMIN` |
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "User role updated", "data": { ...updatedUser } }
-```
-
 ---
 
 ### `GET /api/admin/media`
 
-Get all media entries including unpublished ones.
+All media including unpublished.
 
 **Access:** ADMIN
 
 **Query Parameters:** `page`, `limit`, `type` (`MOVIE` | `SERIES`), `isPublished` (`true` | `false`)
 
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "title": "...", "isPublished": false, ... } ],
-  "meta": { "total": 85, "page": 1, "limit": 10, "totalPages": 9 }
-}
-```
-
 ---
 
 ### `DELETE /api/admin/comments/:id`
 
-Hard-delete any comment from the platform (content moderation).
+Hard-delete any comment (content moderation).
 
 **Access:** ADMIN
-
-**Response:** `200 OK`
-```json
-{ "success": true, "message": "Comment deleted" }
-```
 
 ---
 
@@ -907,14 +808,14 @@ Hard-delete any comment from the platform (content moderation).
 
 | HTTP Status | Meaning |
 |---|---|
-| `400 Bad Request` | Validation failed — check the `error` field for details |
+| `400 Bad Request` | Validation failed or invalid token |
 | `401 Unauthorized` | Missing or invalid access token |
-| `403 Forbidden` | Valid token but insufficient role |
+| `403 Forbidden` | Email not verified, or insufficient role |
 | `404 Not Found` | Resource does not exist |
-| `409 Conflict` | Duplicate entry (e.g., reviewing the same media twice) |
+| `409 Conflict` | Duplicate entry (e.g. reviewing same media twice) |
 | `500 Internal Server Error` | Unexpected server error |
 
-**Validation error shape:**
+**Validation error shape (`400`):**
 ```json
 {
   "success": false,
@@ -924,4 +825,51 @@ Hard-delete any comment from the platform (content moderation).
     { "field": "password", "message": "Must contain at least one uppercase letter" }
   ]
 }
+```
+
+**Unverified email error shape (`403`):**
+```json
+{
+  "success": false,
+  "message": "Please verify your email address before proceeding"
+}
+```
+
+---
+
+## Authentication Flow Summary
+
+```
+Registration
+  POST /api/auth/register
+        │
+        ▼
+  Email sent → user clicks link
+        │
+        ▼
+  GET /api/auth/verify-email?token=xxx
+        │
+        ▼
+  Verified + auto-logged in (accessToken returned)
+
+Login (email/password)
+  POST /api/auth/login  ──► 403 if email not verified
+        │
+        ▼
+  accessToken (body) + refreshToken (httpOnly cookie)
+
+Login (Google OAuth)
+  GET /api/auth/google  ──► redirect to Google
+        │
+  Google redirects back
+        │
+        ▼
+  GET /api/auth/google/callback
+        │
+        ▼
+  redirect to {FRONTEND_URL}/auth/callback?token=<accessToken>
+  refreshToken set as httpOnly cookie
+
+Token Refresh
+  POST /api/auth/refresh  ──► new accessToken
 ```

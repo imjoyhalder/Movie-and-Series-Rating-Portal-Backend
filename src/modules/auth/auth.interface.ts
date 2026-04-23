@@ -1,28 +1,4 @@
-export interface RegisterDto {
-  name: string;
-  email: string;
-  password: string;
-}
-
-export interface LoginDto {
-  email: string;
-  password: string;
-}
-
-export interface ForgotPasswordDto {
-  email: string;
-}
-
-export interface ResetPasswordDto {
-  token: string;
-  password: string;
-}
-
-export interface RefreshTokenDto {
-  refreshToken: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+// Auth is handled by Better Auth — see src/config/auth.ts
+// All sign-up, sign-in, OAuth, email verification, and password-reset
+// endpoints are served at /api/auth/* by Better Auth's toNodeHandler.
+export {};

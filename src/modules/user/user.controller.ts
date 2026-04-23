@@ -20,15 +20,6 @@ export class UserController {
       next(error);
     }
   }
-
-  async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      await userService.changePassword(req.user!.id, req.body);
-      sendResponse(res, 200, 'Password changed successfully');
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 
 export const userController = new UserController();

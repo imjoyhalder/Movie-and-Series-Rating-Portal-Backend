@@ -1,13 +1,19 @@
-import { prisma } from '../../config/database';
-import { AppError } from '../../utils/AppError';
-import { getPagination, buildMeta } from '../../utils/response';
-import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.interface';
 import { Prisma } from '@prisma/client';
+import { prisma } from '../../config/database';
+import { getPagination, buildMeta } from '../../utils/response';
+import { findOrThrow, assertOwnership } from '../../utils/db';
+import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.interface';
+import { AppError } from '../../utils/AppError';
+
+const USER_SELECT = { id: true, name: true, image: true } as const;
+const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true } as const;
 
 export class ReviewService {
   async create(userId: string, dto: CreateReviewDto) {
-    const media = await prisma.media.findUnique({ where: { id: dto.mediaId } });
-    if (!media) throw new AppError('Media not found', 404);
+    await findOrThrow(
+      prisma.media.findUnique({ where: { id: dto.mediaId } }),
+      'Media not found',
+    );
 
     const existing = await prisma.review.findUnique({
       where: { userId_mediaId: { userId, mediaId: dto.mediaId } },
@@ -17,8 +23,8 @@ export class ReviewService {
     return prisma.review.create({
       data: { ...dto, userId, status: 'PENDING' },
       include: {
-        user: { select: { id: true, name: true, avatar: true } },
-        media: { select: { id: true, title: true, posterUrl: true } },
+        user: { select: USER_SELECT },
+        media: { select: MEDIA_SELECT },
       },
     });
   }
@@ -36,8 +42,8 @@ export class ReviewService {
       query.sortBy === 'topRated'
         ? { rating: 'desc' }
         : query.sortBy === 'mostLiked'
-        ? { likes: { _count: 'desc' } }
-        : { createdAt: 'desc' };
+          ? { likes: { _count: 'desc' } }
+          : { createdAt: 'desc' };
 
     const [data, total] = await Promise.all([
       prisma.review.findMany({
@@ -46,8 +52,8 @@ export class ReviewService {
         take,
         orderBy,
         include: {
-          user: { select: { id: true, name: true, avatar: true } },
-          media: { select: { id: true, title: true, posterUrl: true, type: true } },
+          user: { select: USER_SELECT },
+          media: { select: MEDIA_SELECT },
           _count: { select: { likes: true, comments: true } },
         },
       }),
@@ -58,31 +64,36 @@ export class ReviewService {
   }
 
   async findOne(id: string) {
-    const review = await prisma.review.findUnique({
-      where: { id },
-      include: {
-        user: { select: { id: true, name: true, avatar: true } },
-        media: { select: { id: true, title: true, posterUrl: true, type: true } },
-        _count: { select: { likes: true, comments: true } },
-      },
-    });
-    if (!review) throw new AppError('Review not found', 404);
-    return review;
+    return findOrThrow(
+      prisma.review.findUnique({
+        where: { id },
+        include: {
+          user: { select: USER_SELECT },
+          media: { select: MEDIA_SELECT },
+          _count: { select: { likes: true, comments: true } },
+        },
+      }),
+      'Review not found',
+    );
   }
 
   async update(id: string, userId: string, dto: UpdateReviewDto) {
-    const review = await prisma.review.findUnique({ where: { id } });
-    if (!review) throw new AppError('Review not found', 404);
-    if (review.userId !== userId) throw new AppError('Forbidden', 403);
+    const review = await findOrThrow(
+      prisma.review.findUnique({ where: { id } }),
+      'Review not found',
+    );
+    assertOwnership(review.userId, userId);
     if (review.status === 'APPROVED') throw new AppError('Cannot edit an approved review', 400);
 
     return prisma.review.update({ where: { id }, data: dto });
   }
 
   async delete(id: string, userId: string, isAdmin: boolean) {
-    const review = await prisma.review.findUnique({ where: { id } });
-    if (!review) throw new AppError('Review not found', 404);
-    if (!isAdmin && review.userId !== userId) throw new AppError('Forbidden', 403);
+    const review = await findOrThrow(
+      prisma.review.findUnique({ where: { id } }),
+      'Review not found',
+    );
+    assertOwnership(review.userId, userId, isAdmin);
     if (!isAdmin && review.status === 'APPROVED') {
       throw new AppError('Cannot delete an approved review', 400);
     }
@@ -90,20 +101,22 @@ export class ReviewService {
   }
 
   async toggleLike(reviewId: string, userId: string) {
-    const review = await prisma.review.findUnique({ where: { id: reviewId } });
-    if (!review) throw new AppError('Review not found', 404);
+    await findOrThrow(prisma.review.findUnique({ where: { id: reviewId } }), 'Review not found');
 
-    const existing = await prisma.reviewLike.findUnique({
-      where: { reviewId_userId: { reviewId, userId } },
+    // Transaction prevents race conditions where two requests toggle simultaneously
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.reviewLike.findUnique({
+        where: { reviewId_userId: { reviewId, userId } },
+      });
+
+      if (existing) {
+        await tx.reviewLike.delete({ where: { id: existing.id } });
+        return { liked: false };
+      }
+
+      await tx.reviewLike.create({ data: { reviewId, userId } });
+      return { liked: true };
     });
-
-    if (existing) {
-      await prisma.reviewLike.delete({ where: { id: existing.id } });
-      return { liked: false };
-    }
-
-    await prisma.reviewLike.create({ data: { reviewId, userId } });
-    return { liked: true };
   }
 
   async getUserReviews(userId: string) {
@@ -111,7 +124,7 @@ export class ReviewService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
-        media: { select: { id: true, title: true, posterUrl: true, type: true } },
+        media: { select: MEDIA_SELECT },
         _count: { select: { likes: true, comments: true } },
       },
     });

@@ -1,24 +1,28 @@
 import { prisma } from '../../config/database';
-import { AppError } from '../../utils/AppError';
+import { findOrThrow, assertOwnership } from '../../utils/db';
 import { CreateCommentDto, UpdateCommentDto } from './comment.interface';
+
+const USER_SELECT = { id: true, name: true, image: true } as const;
 
 export class CommentService {
   async create(userId: string, dto: CreateCommentDto) {
-    const review = await prisma.review.findUnique({ where: { id: dto.reviewId } });
-    if (!review) throw new AppError('Review not found', 404);
+    await findOrThrow(
+      prisma.review.findUnique({ where: { id: dto.reviewId } }),
+      'Review not found',
+    );
 
     if (dto.parentId) {
-      const parent = await prisma.comment.findUnique({ where: { id: dto.parentId } });
-      if (!parent) throw new AppError('Parent comment not found', 404);
+      await findOrThrow(
+        prisma.comment.findUnique({ where: { id: dto.parentId } }),
+        'Parent comment not found',
+      );
     }
 
     return prisma.comment.create({
       data: { ...dto, userId },
       include: {
-        user: { select: { id: true, name: true, avatar: true } },
-        replies: {
-          include: { user: { select: { id: true, name: true, avatar: true } } },
-        },
+        user: { select: USER_SELECT },
+        replies: { include: { user: { select: USER_SELECT } } },
       },
     });
   }
@@ -28,31 +32,35 @@ export class CommentService {
       where: { reviewId, parentId: null },
       orderBy: { createdAt: 'asc' },
       include: {
-        user: { select: { id: true, name: true, avatar: true } },
+        user: { select: USER_SELECT },
         replies: {
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: { id: true, name: true, avatar: true } } },
+          include: { user: { select: USER_SELECT } },
         },
       },
     });
   }
 
   async update(id: string, userId: string, dto: UpdateCommentDto) {
-    const comment = await prisma.comment.findUnique({ where: { id } });
-    if (!comment) throw new AppError('Comment not found', 404);
-    if (comment.userId !== userId) throw new AppError('Forbidden', 403);
+    const comment = await findOrThrow(
+      prisma.comment.findUnique({ where: { id } }),
+      'Comment not found',
+    );
+    assertOwnership(comment.userId, userId);
 
     return prisma.comment.update({
       where: { id },
       data: { content: dto.content },
-      include: { user: { select: { id: true, name: true, avatar: true } } },
+      include: { user: { select: USER_SELECT } },
     });
   }
 
   async delete(id: string, userId: string, isAdmin: boolean) {
-    const comment = await prisma.comment.findUnique({ where: { id } });
-    if (!comment) throw new AppError('Comment not found', 404);
-    if (!isAdmin && comment.userId !== userId) throw new AppError('Forbidden', 403);
+    const comment = await findOrThrow(
+      prisma.comment.findUnique({ where: { id } }),
+      'Comment not found',
+    );
+    assertOwnership(comment.userId, userId, isAdmin);
     await prisma.comment.delete({ where: { id } });
   }
 }

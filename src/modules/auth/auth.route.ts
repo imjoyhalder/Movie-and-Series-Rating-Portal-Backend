@@ -1,20 +1,19 @@
+// All auth routes are handled by Better Auth at /api/auth/*.
+// The handler is mounted in src/app.ts via toNodeHandler(auth).
+//
+// Available endpoints (Better Auth defaults):
+//   POST   /api/auth/sign-up/email
+//   POST   /api/auth/sign-in/email
+//   POST   /api/auth/sign-out
+//   GET    /api/auth/session
+//   POST   /api/auth/forget-password
+//   POST   /api/auth/reset-password
+//   GET    /api/auth/verify-email
+//   POST   /api/auth/change-password
+//   POST   /api/auth/update-user
+//   GET    /api/auth/sign-in/google
+//   GET    /api/auth/callback/google
+
 import { Router } from 'express';
-import { authController } from './auth.controller';
-import { validate } from '../../middleware/validate.middleware';
-import {
-  registerSchema,
-  loginSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-} from './auth.validation';
-
 const router = Router();
-
-router.post('/register', validate(registerSchema), authController.register.bind(authController));
-router.post('/login', validate(loginSchema), authController.login.bind(authController));
-router.post('/refresh', authController.refresh.bind(authController));
-router.post('/logout', authController.logout.bind(authController));
-router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword.bind(authController));
-router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword.bind(authController));
-
 export default router;

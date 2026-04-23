@@ -1,6 +1,5 @@
 import { Router } from 'express';
 
-import authRoutes from '../modules/auth/auth.route';
 import userRoutes from '../modules/user/user.route';
 import movieRoutes from '../modules/movie/movie.route';
 import reviewRoutes from '../modules/review/review.route';
@@ -12,27 +11,30 @@ import adminRoutes from '../modules/admin/admin.route';
 /**
  * Access control summary:
  *
- * PUBLIC          — no token needed
- * USER            — authenticate middleware (any logged-in user)
- * ADMIN           — authenticate + requireAdmin middleware
+ * PUBLIC           — no session required
+ * VERIFIED USER    — authenticate + requireVerified
+ * ADMIN            — authenticate + requireVerified + requireAdmin
  *
- * /auth/*         PUBLIC   register, login, refresh, logout, password reset
- * /movies         PUBLIC   browse & search media
- * /movies/:id     PUBLIC   view single media
- * /reviews        PUBLIC   read approved reviews
- * /comments       PUBLIC   read comments
- * /users/*        USER     own profile & password
- * /reviews (mut.) USER     create / edit / delete own reviews, like
- * /comments(mut.) USER     create / edit / delete own comments
- * /watchlist/*    USER     manage personal watchlist
- * /payments/*     USER     checkout & subscription management
+ * /api/auth/*      Better Auth handles all authentication routes:
+ *                  sign-up, sign-in, sign-out, verify-email,
+ *                  forget-password, reset-password, change-password,
+ *                  update-user, sign-in/google, callback/google
+ *
+ * /movies          PUBLIC   browse & search media
+ * /movies/:id      PUBLIC   view single media
+ * /reviews         PUBLIC   read approved reviews
+ * /comments        PUBLIC   read comments
+ * /users/*         VERIFIED USER   own profile
+ * /reviews (mut.)  VERIFIED USER   create / edit / delete own reviews, like
+ * /comments(mut.)  VERIFIED USER   create / edit / delete own comments
+ * /watchlist/*     VERIFIED USER   manage personal watchlist
+ * /payments/*      VERIFIED USER   checkout & subscription management
  * /payments/webhook PUBLIC (Stripe-signed, raw body verified)
- * /admin/*        ADMIN    dashboard, moderation, user & media management
+ * /admin/*         ADMIN    dashboard, moderation, user & media management
  */
 
 const router = Router();
 
-router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/movies', movieRoutes);
 router.use('/reviews', reviewRoutes);

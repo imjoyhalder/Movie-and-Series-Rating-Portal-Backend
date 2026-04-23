@@ -1,7 +1,7 @@
-import { prisma } from '../../config/database';
-import { AppError } from '../../utils/AppError';
-import { getPagination, buildMeta } from '../../utils/response';
 import type { ReviewStatus } from '@prisma/client';
+import { prisma } from '../../config/database';
+import { getPagination, buildMeta } from '../../utils/response';
+import { findOrThrow } from '../../utils/db';
 
 export class AdminService {
   async getDashboardStats() {
@@ -14,22 +14,23 @@ export class AdminService {
         prisma.subscription.count({ where: { status: 'ACTIVE' } }),
       ]);
 
-    const recentReviews = await prisma.review.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        media: { select: { id: true, title: true } },
-      },
-    });
-
-    const topRatedMedia = await prisma.media.findMany({
-      take: 5,
-      include: {
-        _count: { select: { reviews: true } },
-        reviews: { where: { status: 'APPROVED' }, select: { rating: true } },
-      },
-    });
+    const [recentReviews, topRatedMedia] = await Promise.all([
+      prisma.review.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          media: { select: { id: true, title: true } },
+        },
+      }),
+      prisma.media.findMany({
+        take: 5,
+        include: {
+          _count: { select: { reviews: true } },
+          reviews: { where: { status: 'APPROVED' }, select: { rating: true } },
+        },
+      }),
+    ]);
 
     return {
       stats: { totalUsers, totalMedia, totalReviews, pendingReviews, activeSubscriptions },
@@ -38,7 +39,8 @@ export class AdminService {
         ...m,
         averageRating:
           m.reviews.length > 0
-            ? m.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / m.reviews.length
+            ? m.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+              m.reviews.length
             : 0,
       })),
     };
@@ -86,8 +88,7 @@ export class AdminService {
   }
 
   async moderateReview(reviewId: string, status: ReviewStatus) {
-    const review = await prisma.review.findUnique({ where: { id: reviewId } });
-    if (!review) throw new AppError('Review not found', 404);
+    await findOrThrow(prisma.review.findUnique({ where: { id: reviewId } }), 'Review not found');
     return prisma.review.update({ where: { id: reviewId }, data: { status } });
   }
 
@@ -116,8 +117,7 @@ export class AdminService {
   }
 
   async updateUserRole(userId: string, role: 'USER' | 'ADMIN') {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new AppError('User not found', 404);
+    await findOrThrow(prisma.user.findUnique({ where: { id: userId } }), 'User not found');
     return prisma.user.update({
       where: { id: userId },
       data: { role },
@@ -126,8 +126,10 @@ export class AdminService {
   }
 
   async deleteComment(commentId: string) {
-    const comment = await prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new AppError('Comment not found', 404);
+    await findOrThrow(
+      prisma.comment.findUnique({ where: { id: commentId } }),
+      'Comment not found',
+    );
     await prisma.comment.delete({ where: { id: commentId } });
   }
 
@@ -139,9 +141,7 @@ export class AdminService {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: {
-          _count: { select: { reviews: true, watchlist: true } },
-        },
+        include: { _count: { select: { reviews: true, watchlist: true } } },
       }),
       prisma.media.count(),
     ]);

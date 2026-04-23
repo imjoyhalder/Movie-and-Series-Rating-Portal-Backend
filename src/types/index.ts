@@ -1,18 +1,12 @@
 import { Role } from '@prisma/client';
 
-export interface JwtPayload {
-  userId: string;
-  email: string;
-  role: Role;
-  iat?: number;
-  exp?: number;
-}
-
+// req.user shape — populated by the authenticate middleware from Better Auth session
 export interface AuthUser {
   id: string;
   email: string;
-  role: Role;
   name: string;
+  role: Role;
+  isEmailVerified: boolean;
 }
 
 declare global {

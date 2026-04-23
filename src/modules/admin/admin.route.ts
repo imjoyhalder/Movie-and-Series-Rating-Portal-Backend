@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
-import { authenticate, requireAdmin } from '../../middleware/auth.middleware';
+import { authenticate, requireVerified, requireAdmin } from '../../middleware/auth.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { moderateReviewSchema, updateUserRoleSchema } from './admin.validation';
 
 const router = Router();
 
-// All admin routes require authentication + ADMIN role
-router.use(authenticate, requireAdmin);
+// All admin routes require authentication + verified email + ADMIN role
+router.use(authenticate, requireVerified, requireAdmin);
 
 // Dashboard
 router.get('/dashboard', adminController.getDashboardStats.bind(adminController));
