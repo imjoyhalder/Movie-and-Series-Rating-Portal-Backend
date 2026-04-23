@@ -9,3 +9,6 @@ npm-debug.log*
 .vscode/
 *.tsbuildinfo
 prisma/migrations/**/migration.sql
+
+.vercel
+.env*.local

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import Stripe from 'stripe';
 import { AppError } from '../utils/AppError';
 import { ZodError } from 'zod';
 
@@ -30,6 +31,20 @@ export const errorHandler = (
         field: e.path.map(String).join('.'),
         message: e.message,
       })),
+    });
+    return;
+  }
+
+  // Stripe API errors — map to appropriate HTTP status codes
+  if (err instanceof Stripe.errors.StripeError) {
+    const statusCode = err.statusCode ?? 500;
+    const message =
+      err.type === 'StripeInvalidRequestError'
+        ? err.message // e.g. "No such subscription: 'sub_xxx'"
+        : 'Payment service error';
+    res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 400).json({
+      success: false,
+      message,
     });
     return;
   }

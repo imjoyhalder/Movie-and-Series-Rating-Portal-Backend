@@ -13,17 +13,15 @@ export const env = {
 
   DATABASE_URL: requireEnv('DATABASE_URL'),
 
-  JWT_SECRET: requireEnv('JWT_SECRET'),
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-  JWT_REFRESH_SECRET: requireEnv('JWT_REFRESH_SECRET'),
-  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-
   BETTER_AUTH_SECRET: requireEnv('BETTER_AUTH_SECRET'),
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || 'http://localhost:5000',
+  // On Vercel, VERCEL_URL is auto-set to the deployment host (no protocol).
+  // BETTER_AUTH_URL must be the full origin the server is reachable at.
+  BETTER_AUTH_URL:
+    process.env.BETTER_AUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5000'),
 
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-  GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
 
   STRIPE_SECRET_KEY: requireEnv('STRIPE_SECRET_KEY'),
   STRIPE_WEBHOOK_SECRET: requireEnv('STRIPE_WEBHOOK_SECRET'),
