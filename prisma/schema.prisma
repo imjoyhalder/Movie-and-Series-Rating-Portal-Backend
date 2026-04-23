@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MediaType {
+  MOVIE
+  SERIES
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  UNPUBLISHED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum SubscriptionPlan {
+  FREE
+  MONTHLY
+  YEARLY
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  password         String?
+  avatar           String?
+  role             Role      @default(USER)
+  isEmailVerified  Boolean   @default(false)
+  emailVerifyToken String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  reviews       Review[]
+  comments      Comment[]
+  likes         ReviewLike[]
+  watchlist     Watchlist[]
+  subscription  Subscription?
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Media {
+  id              String    @id @default(cuid())
+  title           String
+  synopsis        String
+  type            MediaType
+  genre           String[]
+  releaseYear     Int
+  director        String
+  cast            String[]
+  streamingPlatforms String[]
+  posterUrl       String?
+  trailerUrl      String?
+  streamingUrl    String?
+  pricing         String    @default("free")
+  isPublished     Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  reviews   Review[]
+  watchlist Watchlist[]
+
+  @@map("media")
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  userId       String
+  mediaId      String
+  rating       Int
+  content      String
+  tags         String[]
+  hasSpoiler   Boolean      @default(false)
+  status       ReviewStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media    Media        @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    ReviewLike[]
+
+  @@unique([userId, mediaId])
+  @@map("reviews")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  parentId  String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review  Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@map("review_likes")
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  mediaId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaId])
+  @@map("watchlists")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(INACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
