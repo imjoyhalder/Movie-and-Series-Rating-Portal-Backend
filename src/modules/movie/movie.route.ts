@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { movieController } from './movie.controller';
-import { authenticate, requireVerified, requireAdmin } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { createMediaSchema, updateMediaSchema } from './movie.validation';
+﻿import { Router } from 'express';
+import { movieController } from './movie.controller.js';
+import { authenticate, requireVerified, requireAdmin } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { createMediaSchema, updateMediaSchema } from './movie.validation.js';
 
 const router = Router();
 

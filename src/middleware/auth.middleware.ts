@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
-import { auth } from '../config/auth';
-import { AppError } from '../utils/AppError';
+import { auth } from '../config/auth.js';
+import { AppError } from '../utils/AppError.js';
 import { Role } from '@prisma/client';
 
 export const authenticate = async (

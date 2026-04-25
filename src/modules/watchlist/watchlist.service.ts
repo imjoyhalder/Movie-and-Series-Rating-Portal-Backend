@@ -1,5 +1,5 @@
-import { prisma } from '../../config/database';
-import { findOrThrow } from '../../utils/db';
+﻿import { prisma } from '../../config/database.js';
+import { findOrThrow } from '../../utils/db.js';
 
 export class WatchlistService {
   async getWatchlist(userId: string) {

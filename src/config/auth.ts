@@ -1,9 +1,9 @@
-import { betterAuth } from 'better-auth';
+﻿import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { bearer } from 'better-auth/plugins';
-import { prisma } from './database';
-import { env } from './env';
-import { sendEmail, emailVerificationHtml, passwordResetEmailHtml } from '../utils/email';
+import { prisma } from './database.js';
+import { env } from './env.js';
+import { sendEmail, emailVerificationHtml, passwordResetEmailHtml } from '../utils/email.js';
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,

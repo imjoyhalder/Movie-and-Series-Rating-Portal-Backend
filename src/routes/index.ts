@@ -1,12 +1,12 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 
-import userRoutes from '../modules/user/user.route';
-import movieRoutes from '../modules/movie/movie.route';
-import reviewRoutes from '../modules/review/review.route';
-import commentRoutes from '../modules/comment/comment.route';
-import watchlistRoutes from '../modules/watchlist/watchlist.route';
-import paymentRoutes from '../modules/payment/payment.route';
-import adminRoutes from '../modules/admin/admin.route';
+import userRoutes from '../modules/user/user.route.js';
+import movieRoutes from '../modules/movie/movie.route.js';
+import reviewRoutes from '../modules/review/review.route.js';
+import commentRoutes from '../modules/comment/comment.route.js';
+import watchlistRoutes from '../modules/watchlist/watchlist.route.js';
+import paymentRoutes from '../modules/payment/payment.route.js';
+import adminRoutes from '../modules/admin/admin.route.js';
 
 /**
  * Access control summary:

@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { watchlistService } from './watchlist.service';
-import { sendResponse } from '../../utils/response';
+﻿import { Request, Response, NextFunction } from 'express';
+import { watchlistService } from './watchlist.service.js';
+import { sendResponse } from '../../utils/response.js';
 
 export class WatchlistController {
   async getWatchlist(req: Request, res: Response, next: NextFunction): Promise<void> {

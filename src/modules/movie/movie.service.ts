@@ -1,8 +1,8 @@
-import { Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
-import { getPagination, buildMeta } from '../../utils/response';
-import { findOrThrow } from '../../utils/db';
-import { CreateMediaDto, UpdateMediaDto, MediaFilterQuery } from './movie.interface';
+﻿import { Prisma } from '@prisma/client';
+import { prisma } from '../../config/database.js';
+import { getPagination, buildMeta } from '../../utils/response.js';
+import { findOrThrow } from '../../utils/db.js';
+import { CreateMediaDto, UpdateMediaDto, MediaFilterQuery } from './movie.interface.js';
 
 const REVIEW_USER_SELECT = { id: true, name: true, image: true } as const;
 

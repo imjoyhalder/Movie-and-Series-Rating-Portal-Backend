@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { movieService } from './movie.service';
-import { sendResponse } from '../../utils/response';
-import { MediaFilterQuery } from './movie.interface';
+﻿import { Request, Response, NextFunction } from 'express';
+import { movieService } from './movie.service.js';
+import { sendResponse } from '../../utils/response.js';
+import { MediaFilterQuery } from './movie.interface.js';
 
 export class MovieController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {

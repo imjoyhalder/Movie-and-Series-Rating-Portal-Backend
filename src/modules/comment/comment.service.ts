@@ -1,6 +1,6 @@
-import { prisma } from '../../config/database';
-import { findOrThrow, assertOwnership } from '../../utils/db';
-import { CreateCommentDto, UpdateCommentDto } from './comment.interface';
+﻿import { prisma } from '../../config/database.js';
+import { findOrThrow, assertOwnership } from '../../utils/db.js';
+import { CreateCommentDto, UpdateCommentDto } from './comment.interface.js';
 
 const USER_SELECT = { id: true, name: true, image: true } as const;
 

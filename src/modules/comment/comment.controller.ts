@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { commentService } from './comment.service';
-import { sendResponse } from '../../utils/response';
+﻿import { Request, Response, NextFunction } from 'express';
+import { commentService } from './comment.service.js';
+import { sendResponse } from '../../utils/response.js';
 
 export class CommentController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {

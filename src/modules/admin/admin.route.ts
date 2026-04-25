@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { adminController } from './admin.controller';
-import { authenticate, requireVerified, requireAdmin } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { moderateReviewSchema, updateUserRoleSchema } from './admin.validation';
+﻿import { Router } from 'express';
+import { adminController } from './admin.controller.js';
+import { authenticate, requireVerified, requireAdmin } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { moderateReviewSchema, updateUserRoleSchema } from './admin.validation.js';
 
 const router = Router();
 

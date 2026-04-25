@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { watchlistController } from './watchlist.controller';
-import { authenticate, requireVerified } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { toggleWatchlistSchema } from './watchlist.validation';
+﻿import { Router } from 'express';
+import { watchlistController } from './watchlist.controller.js';
+import { authenticate, requireVerified } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { toggleWatchlistSchema } from './watchlist.validation.js';
 
 const router = Router();
 

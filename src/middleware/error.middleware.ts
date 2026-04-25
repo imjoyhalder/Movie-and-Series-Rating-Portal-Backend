@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../utils/AppError.js';
 import { ZodError } from 'zod';
 
 interface PrismaError extends Error {

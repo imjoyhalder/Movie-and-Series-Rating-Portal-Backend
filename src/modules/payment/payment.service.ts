@@ -1,9 +1,9 @@
-import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
-import { stripe } from '../../config/stripe';
-import { env } from '../../config/env';
-import { prisma } from '../../config/database';
-import { AppError } from '../../utils/AppError';
-import { findOrThrow } from '../../utils/db';
+﻿import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { stripe } from '../../config/stripe.js';
+import { env } from '../../config/env.js';
+import { prisma } from '../../config/database.js';
+import { AppError } from '../../utils/AppError.js';
+import { findOrThrow } from '../../utils/db.js';
 
 // Local types to avoid Stripe v22 namespace issues
 type WebhookSession = {

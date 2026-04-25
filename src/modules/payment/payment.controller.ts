@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { paymentService } from './payment.service';
-import { sendResponse } from '../../utils/response';
+﻿import { Request, Response, NextFunction } from 'express';
+import { paymentService } from './payment.service.js';
+import { sendResponse } from '../../utils/response.js';
 
 export class PaymentController {
   async createCheckoutSession(req: Request, res: Response, next: NextFunction): Promise<void> {

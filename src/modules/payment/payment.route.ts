@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { paymentController } from './payment.controller';
-import { authenticate, requireVerified } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { createCheckoutSchema } from './payment.validation';
+﻿import { Router } from 'express';
+import { paymentController } from './payment.controller.js';
+import { authenticate, requireVerified } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { createCheckoutSchema } from './payment.validation.js';
 
 const router = Router();
 

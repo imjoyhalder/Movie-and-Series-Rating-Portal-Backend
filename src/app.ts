@@ -1,14 +1,14 @@
-import express, { Application, Request, Response } from 'express';
+﻿import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { toNodeHandler } from 'better-auth/node';
-import { env } from './config/env';
-import { auth } from './config/auth';
-import { errorHandler } from './middleware/error.middleware';
-import { notFoundHandler } from './middleware/notFound.middleware';
-import apiRoutes from './routes';
+import { env } from './config/env.js';
+import { auth } from './config/auth.js';
+import { errorHandler } from './middleware/error.middleware.js';
+import { notFoundHandler } from './middleware/notFound.middleware.js';
+import apiRoutes from './routes/index.js';
 
 const app: Application = express();
 

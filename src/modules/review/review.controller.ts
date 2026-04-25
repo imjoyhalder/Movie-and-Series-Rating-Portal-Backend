@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { reviewService } from './review.service';
-import { sendResponse } from '../../utils/response';
-import { ReviewFilterQuery } from './review.interface';
+﻿import { Request, Response, NextFunction } from 'express';
+import { reviewService } from './review.service.js';
+import { sendResponse } from '../../utils/response.js';
+import { ReviewFilterQuery } from './review.interface.js';
 
 export class ReviewController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { adminService } from './admin.service';
-import { sendResponse } from '../../utils/response';
+﻿import { Request, Response, NextFunction } from 'express';
+import { adminService } from './admin.service.js';
+import { sendResponse } from '../../utils/response.js';
 import type { ReviewStatus } from '@prisma/client';
 
 export class AdminController {

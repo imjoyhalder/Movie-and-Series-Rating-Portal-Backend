@@ -2,17 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.ts",
+      "src": "src/app.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["prisma/schema.prisma"]
+        "includeFiles": ["prisma/schema.prisma"],
+        "esm": true
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "src/app.ts"
     }
   ]
 }

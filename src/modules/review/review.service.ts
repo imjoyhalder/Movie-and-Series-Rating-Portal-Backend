@@ -1,9 +1,9 @@
-import { Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
-import { getPagination, buildMeta } from '../../utils/response';
-import { findOrThrow, assertOwnership } from '../../utils/db';
-import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.interface';
-import { AppError } from '../../utils/AppError';
+﻿import { Prisma } from '@prisma/client';
+import { prisma } from '../../config/database.js';
+import { getPagination, buildMeta } from '../../utils/response.js';
+import { findOrThrow, assertOwnership } from '../../utils/db.js';
+import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.interface.js';
+import { AppError } from '../../utils/AppError.js';
 
 const USER_SELECT = { id: true, name: true, image: true } as const;
 const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true } as const;

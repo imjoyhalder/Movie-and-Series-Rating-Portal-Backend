@@ -1,4 +1,4 @@
-import { AppError } from './AppError';
+﻿import { AppError } from './AppError.js';
 
 /**
  * Await a nullable Prisma query; throw 404 (or custom code) if the result is null.

@@ -1,6 +1,6 @@
-import { prisma } from '../../config/database';
-import { findOrThrow } from '../../utils/db';
-import { UpdateProfileDto } from './user.interface';
+﻿import { prisma } from '../../config/database.js';
+import { findOrThrow } from '../../utils/db.js';
+import { UpdateProfileDto } from './user.interface.js';
 
 export class UserService {
   async getProfile(userId: string) {

@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { reviewController } from './review.controller';
-import { authenticate, requireVerified } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { createReviewSchema, updateReviewSchema } from './review.validation';
+﻿import { Router } from 'express';
+import { reviewController } from './review.controller.js';
+import { authenticate, requireVerified } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { createReviewSchema, updateReviewSchema } from './review.validation.js';
 
 const router = Router();
 

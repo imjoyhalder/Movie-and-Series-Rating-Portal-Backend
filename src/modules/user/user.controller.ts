@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { userService } from './user.service';
-import { sendResponse } from '../../utils/response';
+﻿import { Request, Response, NextFunction } from 'express';
+import { userService } from './user.service.js';
+import { sendResponse } from '../../utils/response.js';
 
 export class UserController {
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {

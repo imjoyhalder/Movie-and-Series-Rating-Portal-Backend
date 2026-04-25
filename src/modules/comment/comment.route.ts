@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { commentController } from './comment.controller';
-import { authenticate, requireVerified } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
-import { createCommentSchema, updateCommentSchema } from './comment.validation';
+﻿import { Router } from 'express';
+import { commentController } from './comment.controller.js';
+import { authenticate, requireVerified } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { createCommentSchema, updateCommentSchema } from './comment.validation.js';
 
 const router = Router();
 

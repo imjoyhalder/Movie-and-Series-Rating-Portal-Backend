@@ -1,7 +1,7 @@
-import type { ReviewStatus } from '@prisma/client';
-import { prisma } from '../../config/database';
-import { getPagination, buildMeta } from '../../utils/response';
-import { findOrThrow } from '../../utils/db';
+﻿import type { ReviewStatus } from '@prisma/client';
+import { prisma } from '../../config/database.js';
+import { getPagination, buildMeta } from '../../utils/response.js';
+import { findOrThrow } from '../../utils/db.js';
 
 export class AdminService {
   async getDashboardStats() {
