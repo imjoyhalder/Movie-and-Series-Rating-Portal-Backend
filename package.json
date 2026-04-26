@@ -7,7 +7,7 @@
     "dev": "nodemon --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "vercel-build": "prisma generate",
+    "vercel-build": "prisma generate && tsc",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

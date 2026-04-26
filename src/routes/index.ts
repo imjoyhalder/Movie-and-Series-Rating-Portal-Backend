@@ -7,6 +7,7 @@ import commentRoutes from '../modules/comment/comment.route.js';
 import watchlistRoutes from '../modules/watchlist/watchlist.route.js';
 import paymentRoutes from '../modules/payment/payment.route.js';
 import adminRoutes from '../modules/admin/admin.route.js';
+import uploadRoutes from '../modules/upload/upload.route.js';
 
 /**
  * Access control summary:
@@ -42,5 +43,6 @@ router.use('/comments', commentRoutes);
 router.use('/watchlist', watchlistRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/admin', adminRoutes);
+router.use('/upload', uploadRoutes);
 
 export default router;
