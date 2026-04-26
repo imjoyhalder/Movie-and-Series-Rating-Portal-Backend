@@ -80,7 +80,27 @@ export class PaymentService {
   }
 
   async getSubscription(userId: string) {
-    return prisma.subscription.findUnique({ where: { userId } });
+    const sub = await prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) return null;
+
+    // Auto-downgrade when the paid period has elapsed (handles missed / delayed webhooks)
+    if (
+      sub.status === SubscriptionStatus.ACTIVE &&
+      sub.plan !== SubscriptionPlan.FREE &&
+      sub.currentPeriodEnd &&
+      sub.currentPeriodEnd < new Date()
+    ) {
+      return prisma.subscription.update({
+        where: { userId },
+        data: {
+          plan: SubscriptionPlan.FREE,
+          status: SubscriptionStatus.CANCELLED,
+          cancelAtPeriodEnd: false,
+        },
+      });
+    }
+
+    return sub;
   }
 
   async cancelSubscription(userId: string) {
