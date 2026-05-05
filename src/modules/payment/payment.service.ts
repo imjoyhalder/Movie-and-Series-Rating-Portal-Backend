@@ -103,6 +103,21 @@ export class PaymentService {
     return sub;
   }
 
+  async syncFromStripe(userId: string, sessionId: string) {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.metadata?.userId !== userId) {
+      throw new AppError('Session does not belong to this user', 403);
+    }
+
+    if (session.payment_status !== 'paid') {
+      return null;
+    }
+
+    await this.handleCheckoutComplete(session as unknown as WebhookSession);
+    return this.getSubscription(userId);
+  }
+
   async cancelSubscription(userId: string) {
     const subscription = await findOrThrow(
       prisma.subscription.findUnique({ where: { userId } }),

@@ -14,6 +14,7 @@ router.use(authenticate, requireVerified);
 
 router.post('/checkout', validate(createCheckoutSchema), paymentController.createCheckoutSession.bind(paymentController));
 router.get('/subscription', paymentController.getSubscription.bind(paymentController));
+router.post('/subscription/sync', paymentController.syncSubscription.bind(paymentController));
 router.post('/subscription/cancel', paymentController.cancelSubscription.bind(paymentController));
 
 export default router;

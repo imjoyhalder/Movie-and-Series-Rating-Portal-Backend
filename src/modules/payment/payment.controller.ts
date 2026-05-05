@@ -46,6 +46,17 @@ export class PaymentController {
     }
   }
 
+  async syncSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { session_id } = req.query as { session_id?: string };
+      if (!session_id) throw new AppError('session_id query param required', 400);
+      const subscription = await paymentService.syncFromStripe(req.user!.id, session_id);
+      sendResponse(res, 200, subscription ? 'Subscription synced' : 'Payment pending', subscription);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async cancelSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (req.user!.role === Role.ADMIN) {

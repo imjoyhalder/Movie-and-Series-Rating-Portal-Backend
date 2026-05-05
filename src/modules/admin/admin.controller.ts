@@ -4,7 +4,7 @@ import { sendResponse } from '../../utils/response.js';
 import type { ReviewStatus } from '@prisma/client';
 
 export class AdminController {
-  async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getDashboardStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const stats = await adminService.getDashboardStats();
       sendResponse(res, 200, 'Dashboard stats fetched', stats);
@@ -70,6 +70,18 @@ export class AdminController {
     try {
       await adminService.deleteComment(String(req.params.id));
       sendResponse(res, 200, 'Comment deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const page   = Number(req.query.page)  || 1;
+      const limit  = Number(req.query.limit) || 20;
+      const status = req.query.status as string | undefined;
+      const result = await adminService.getSubscriptions(page, limit, status);
+      sendResponse(res, 200, 'Subscriptions fetched', result.data, result.meta);
     } catch (error) {
       next(error);
     }

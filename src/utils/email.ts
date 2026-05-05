@@ -44,6 +44,60 @@ export const emailVerificationHtml = (name: string, verifyUrl: string): string =
     </a>
     <p style="color:#666;font-size:14px;">This link expires in 24 hours. If you did not create an account, you can safely ignore this email.</p>
     <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-    <p style="color:#999;font-size:12px;">Movie Portal &mdash; Your streaming destination</p>
+    <p style="color:#999;font-size:12px;">CinePortal &mdash; Your streaming destination</p>
+  </div>
+`;
+
+export const emailOtpHtml = (email: string, otp: string): string => `
+  <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0a;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#d97706,#b45309);padding:32px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:24px;font-weight:700;">🎬 CinePortal</h1>
+      <p style="color:#fde68a;margin:8px 0 0;font-size:14px;">Email Verification</p>
+    </div>
+    <div style="padding:32px;background:#111111;">
+      <p style="color:#e5e5e5;font-size:15px;margin:0 0 20px;">Hi there!</p>
+      <p style="color:#a3a3a3;font-size:14px;margin:0 0 28px;line-height:1.6;">
+        Use the verification code below to confirm your email address <strong style="color:#e5e5e5;">${email}</strong>.
+        The code expires in <strong style="color:#e5e5e5;">10 minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:0 0 28px;">
+        <div style="display:inline-block;background:#1f1f1f;border:2px solid #d97706;border-radius:12px;padding:20px 36px;">
+          <span style="font-size:36px;font-weight:800;letter-spacing:10px;color:#d97706;font-family:monospace;">${otp}</span>
+        </div>
+      </div>
+      <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
+        If you did not create a CinePortal account, you can safely ignore this email.
+      </p>
+    </div>
+    <div style="background:#0a0a0a;padding:16px;text-align:center;">
+      <p style="color:#4b5563;font-size:12px;margin:0;">CinePortal &mdash; Your streaming destination</p>
+    </div>
+  </div>
+`;
+
+export const forgotPasswordOtpHtml = (email: string, otp: string): string => `
+  <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0a;border-radius:12px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1d4ed8,#1e40af);padding:32px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:24px;font-weight:700;">🔐 Password Reset</h1>
+      <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px;">CinePortal Account Security</p>
+    </div>
+    <div style="padding:32px;background:#111111;">
+      <p style="color:#e5e5e5;font-size:15px;margin:0 0 20px;">Hi there!</p>
+      <p style="color:#a3a3a3;font-size:14px;margin:0 0 28px;line-height:1.6;">
+        We received a password reset request for <strong style="color:#e5e5e5;">${email}</strong>.
+        Enter the code below to reset your password. It expires in <strong style="color:#e5e5e5;">10 minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:0 0 28px;">
+        <div style="display:inline-block;background:#1f1f1f;border:2px solid #3b82f6;border-radius:12px;padding:20px 36px;">
+          <span style="font-size:36px;font-weight:800;letter-spacing:10px;color:#60a5fa;font-family:monospace;">${otp}</span>
+        </div>
+      </div>
+      <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
+        If you did not request a password reset, please ignore this email. Your account remains secure.
+      </p>
+    </div>
+    <div style="background:#0a0a0a;padding:16px;text-align:center;">
+      <p style="color:#4b5563;font-size:12px;margin:0;">CinePortal &mdash; Your streaming destination</p>
+    </div>
   </div>
 `;

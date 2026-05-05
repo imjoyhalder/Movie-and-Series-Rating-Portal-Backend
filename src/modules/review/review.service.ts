@@ -6,7 +6,7 @@ import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.in
 import { AppError } from '../../utils/AppError.js';
 
 const USER_SELECT = { id: true, name: true, image: true } as const;
-const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true } as const;
+const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true, pricing: true } as const;
 
 export class ReviewService {
   async create(userId: string, dto: CreateReviewDto) {
@@ -25,6 +25,7 @@ export class ReviewService {
       include: {
         user: { select: USER_SELECT },
         media: { select: MEDIA_SELECT },
+        _count: { select: { likes: true, comments: true } },
       },
     });
   }

@@ -116,9 +116,6 @@ model Verification {
   @@map("verifications")
 }
 
-// ─────────────────────────────────────────
-// Domain models
-// ─────────────────────────────────────────
 
 model Media {
   id                 String    @id @default(cuid())

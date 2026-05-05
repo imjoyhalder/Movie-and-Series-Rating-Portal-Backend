@@ -17,6 +17,9 @@ router.get('/reviews', adminController.getAllReviews.bind(adminController));
 router.get('/reviews/pending', adminController.getPendingReviews.bind(adminController));
 router.patch('/reviews/:id/moderate', validate(moderateReviewSchema), adminController.moderateReview.bind(adminController));
 
+// Subscription management
+router.get('/subscriptions', adminController.getSubscriptions.bind(adminController));
+
 // User management
 router.get('/users', adminController.getAllUsers.bind(adminController));
 router.patch('/users/:id/role', validate(updateUserRoleSchema), adminController.updateUserRole.bind(adminController));
