@@ -5,7 +5,12 @@ import { findOrThrow, assertOwnership } from '../../utils/db.js';
 import { CreateReviewDto, UpdateReviewDto, ReviewFilterQuery } from './review.interface.js';
 import { AppError } from '../../utils/AppError.js';
 
-const USER_SELECT = { id: true, name: true, image: true } as const;
+const USER_SELECT = {
+  id: true,
+  name: true,
+  image: true,
+  subscription: { select: { plan: true, status: true } },
+} as const;
 const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true, pricing: true } as const;
 
 export class ReviewService {
@@ -19,6 +24,29 @@ export class ReviewService {
       where: { userId_mediaId: { userId, mediaId: dto.mediaId } },
     });
     if (existing) throw new AppError('You have already reviewed this title', 409);
+
+    // Enforce 1 review/month for free-plan users
+    const subscription = await prisma.subscription.findUnique({ where: { userId } });
+    const hasPaidPlan =
+      subscription?.status === 'ACTIVE' &&
+      subscription.plan !== 'FREE';
+
+    if (!hasPaidPlan) {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const monthlyCount = await prisma.review.count({
+        where: { userId, createdAt: { gte: monthStart } },
+      });
+
+      if (monthlyCount >= 1) {
+        throw new AppError(
+          'Free plan allows 1 review per month. Upgrade to Pro for unlimited reviews.',
+          403,
+        );
+      }
+    }
 
     return prisma.review.create({
       data: { ...dto, userId, status: 'PENDING' },
