@@ -31,6 +31,11 @@ export class AdminService {
       monthlySubscriptions * MONTHLY_PRICE +
       yearlySubscriptions  * (YEARLY_PRICE / 12);
 
+    // Estimated annual recurring revenue
+    const estimatedARR =
+      monthlySubscriptions * MONTHLY_PRICE * 12 +
+      yearlySubscriptions  * YEARLY_PRICE;
+
     const [recentReviews, topRatedMedia] = await Promise.all([
       prisma.review.findMany({
         take: 10,
@@ -60,6 +65,7 @@ export class AdminService {
         monthlySubscriptions,
         yearlySubscriptions,
         estimatedMRR,
+        estimatedARR,
       },
       recentReviews,
       topRatedMedia: topRatedMedia.map((m) => ({
