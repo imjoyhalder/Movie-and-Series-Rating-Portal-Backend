@@ -15,8 +15,8 @@ const MEDIA_SELECT = { id: true, title: true, posterUrl: true, type: true, prici
 
 export class ReviewService {
   async create(userId: string, dto: CreateReviewDto) {
-    await findOrThrow(
-      prisma.media.findUnique({ where: { id: dto.mediaId } }),
+    const media = await findOrThrow(
+      prisma.media.findUnique({ where: { id: dto.mediaId }, select: { id: true, pricing: true } }),
       'Media not found',
     );
 
@@ -25,12 +25,20 @@ export class ReviewService {
     });
     if (existing) throw new AppError('You have already reviewed this title', 409);
 
-    // Enforce 1 review/month for free-plan users
     const subscription = await prisma.subscription.findUnique({ where: { userId } });
     const hasPaidPlan =
       subscription?.status === 'ACTIVE' &&
       subscription.plan !== 'FREE';
 
+    // Premium content requires an active paid subscription
+    if (media.pricing === 'premium' && !hasPaidPlan) {
+      throw new AppError(
+        'Premium content is only available to Pro subscribers. Upgrade your plan to review this title.',
+        403,
+      );
+    }
+
+    // Free users limited to 1 review per month across all content
     if (!hasPaidPlan) {
       const monthStart = new Date();
       monthStart.setDate(1);
