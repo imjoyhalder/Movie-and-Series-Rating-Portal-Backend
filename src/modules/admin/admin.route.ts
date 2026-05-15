@@ -23,6 +23,8 @@ router.get('/subscriptions', adminController.getSubscriptions.bind(adminControll
 // User management
 router.get('/users', adminController.getAllUsers.bind(adminController));
 router.patch('/users/:id/role', validate(updateUserRoleSchema), adminController.updateUserRole.bind(adminController));
+router.patch('/users/:id/ban', adminController.banUser.bind(adminController));
+router.delete('/users/:id', adminController.deleteUser.bind(adminController));
 
 // Media management (admin view — includes unpublished)
 router.get('/media', adminController.getAllMedia.bind(adminController));

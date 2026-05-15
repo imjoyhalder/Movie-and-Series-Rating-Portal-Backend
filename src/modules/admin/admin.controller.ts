@@ -27,10 +27,16 @@ export class AdminController {
 
   async getAllReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
+      const page   = Number(req.query.page)  || 1;
+      const limit  = Number(req.query.limit) || 20;
       const status = req.query.status as ReviewStatus | undefined;
-      const result = await adminService.getAllReviews(page, limit, status as ReviewStatus | undefined);
+      const result = await adminService.getAllReviews(
+        page, limit,
+        status,
+        req.query.search    as string | undefined,
+        req.query.sortBy    as string | undefined,
+        req.query.sortOrder as string | undefined,
+      );
       sendResponse(res, 200, 'Reviews fetched', result.data, result.meta);
     } catch (error) {
       next(error);
@@ -49,9 +55,16 @@ export class AdminController {
 
   async getAllUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-      const result = await adminService.getAllUsers(page, limit);
+      const page  = Number(req.query.page)  || 1;
+      const limit = Number(req.query.limit) || 20;
+      const result = await adminService.getAllUsers(
+        page, limit,
+        req.query.search    as string | undefined,
+        req.query.role      as string | undefined,
+        req.query.banned    as string | undefined,
+        req.query.sortBy    as string | undefined,
+        req.query.sortOrder as string | undefined,
+      );
       sendResponse(res, 200, 'Users fetched', result.data, result.meta);
     } catch (error) {
       next(error);
@@ -62,6 +75,25 @@ export class AdminController {
     try {
       const user = await adminService.updateUserRole(String(req.params.id), req.body.role);
       sendResponse(res, 200, 'User role updated', user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async banUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const banned = req.body.banned === true;
+      const user = await adminService.banUser(String(req.params.id), banned);
+      sendResponse(res, 200, banned ? 'User banned' : 'User unbanned', user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await adminService.deleteUser(String(req.params.id));
+      sendResponse(res, 200, 'User deleted');
     } catch (error) {
       next(error);
     }
@@ -80,8 +112,12 @@ export class AdminController {
     try {
       const page   = Number(req.query.page)  || 1;
       const limit  = Number(req.query.limit) || 20;
-      const status = req.query.status as string | undefined;
-      const result = await adminService.getSubscriptions(page, limit, status);
+      const result = await adminService.getSubscriptions(
+        page, limit,
+        req.query.status as string | undefined,
+        req.query.plan   as string | undefined,
+        req.query.search as string | undefined,
+      );
       sendResponse(res, 200, 'Subscriptions fetched', result.data, result.meta);
     } catch (error) {
       next(error);

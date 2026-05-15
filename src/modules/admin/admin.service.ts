@@ -126,9 +126,20 @@ export class AdminService {
     };
   }
 
-  async getSubscriptions(page: number, limit: number, status?: string) {
+  async getSubscriptions(page: number, limit: number, status?: string, plan?: string, search?: string) {
     const { skip, take } = getPagination(page, limit);
-    const where = status && status !== 'ALL' ? { status: status as SubscriptionStatus } : {};
+
+    const where: Prisma.SubscriptionWhereInput = {};
+    if (status && status !== 'ALL') where.status = status as SubscriptionStatus;
+    if (plan   && plan   !== 'ALL') where.plan   = plan as 'MONTHLY' | 'YEARLY' | 'FREE';
+    if (search) {
+      where.user = {
+        OR: [
+          { name:  { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
 
     const [data, total] = await Promise.all([
       prisma.subscription.findMany({
@@ -166,18 +177,30 @@ export class AdminService {
     return { data, meta: buildMeta(total, page, take) };
   }
 
-  async getAllReviews(page: number, limit: number, status?: ReviewStatus) {
+  async getAllReviews(page: number, limit: number, status?: ReviewStatus, search?: string, sortBy?: string, sortOrder?: string) {
     const { skip, take } = getPagination(page, limit);
-    const where = status ? { status } : {};
+
+    const where: Prisma.ReviewWhereInput = {};
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { user:  { name:  { contains: search, mode: 'insensitive' } } },
+        { media: { title: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const order = (sortOrder === 'asc' ? 'asc' : 'desc') as Prisma.SortOrder;
+    const orderBy: Prisma.ReviewOrderByWithRelationInput =
+      sortBy === 'rating' ? { rating: order } : { createdAt: order };
 
     const [data, total] = await Promise.all([
       prisma.review.findMany({
         where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: {
-          user:  { select: { id: true, name: true, email: true } },
+          user:  { select: { id: true, name: true, email: true, image: true } },
           media: { select: { id: true, title: true } },
         },
       }),
@@ -192,29 +215,70 @@ export class AdminService {
     return prisma.review.update({ where: { id: reviewId }, data: { status } });
   }
 
-  async getAllUsers(page: number, limit: number) {
+  async getAllUsers(
+    page: number,
+    limit: number,
+    search?: string,
+    role?: string,
+    banned?: string,
+    sortBy?: string,
+    sortOrder?: string,
+  ) {
     const { skip, take } = getPagination(page, limit);
 
-    const [data, total] = await Promise.all([
+    const where: Prisma.UserWhereInput = {};
+    if (search) {
+      where.OR = [
+        { name:  { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (role   && role !== 'ALL') where.role   = role as 'USER' | 'ADMIN';
+    if (banned === 'true')        where.banned = true;
+    if (banned === 'false')       where.banned = false;
+
+    const order = (sortOrder === 'asc' ? 'asc' : 'desc') as Prisma.SortOrder;
+    const orderBy: Prisma.UserOrderByWithRelationInput =
+      sortBy === 'name'    ? { name:      order }              :
+      sortBy === 'reviews' ? { reviews:   { _count: order } }  :
+                             { createdAt: 'desc' };
+
+    const [data, filteredTotal, allTotal, bannedTotal, adminTotal] = await Promise.all([
       prisma.user.findMany({
+        where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         select: {
           id:           true,
           name:         true,
           email:        true,
           image:        true,
           role:         true,
+          banned:       true,
           createdAt:    true,
           subscription: { select: { plan: true, status: true } },
           _count:       { select: { reviews: true } },
         },
       }),
+      prisma.user.count({ where }),
       prisma.user.count(),
+      prisma.user.count({ where: { banned: true } }),
+      prisma.user.count({ where: { role: 'ADMIN' } }),
     ]);
 
-    return { data, meta: buildMeta(total, page, take) };
+    return {
+      data,
+      meta: {
+        ...buildMeta(filteredTotal, page, take),
+        summary: {
+          total:  allTotal,
+          active: allTotal - bannedTotal,
+          banned: bannedTotal,
+          admins: adminTotal,
+        },
+      },
+    };
   }
 
   async updateUserRole(userId: string, role: 'USER' | 'ADMIN') {
@@ -224,6 +288,20 @@ export class AdminService {
       data:   { role },
       select: { id: true, name: true, email: true, role: true },
     });
+  }
+
+  async banUser(userId: string, banned: boolean) {
+    await findOrThrow(prisma.user.findUnique({ where: { id: userId } }), 'User not found');
+    return prisma.user.update({
+      where:  { id: userId },
+      data:   { banned },
+      select: { id: true, name: true, email: true, banned: true },
+    });
+  }
+
+  async deleteUser(userId: string) {
+    await findOrThrow(prisma.user.findUnique({ where: { id: userId } }), 'User not found');
+    await prisma.user.delete({ where: { id: userId } });
   }
 
   async deleteComment(commentId: string) {
