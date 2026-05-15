@@ -26,9 +26,61 @@ export class MovieService {
           { title: { contains: query.search, mode: 'insensitive' } },
           { director: { contains: query.search, mode: 'insensitive' } },
           { synopsis: { contains: query.search, mode: 'insensitive' } },
+          { cast: { has: query.search } },
         ],
       }),
     };
+
+    // Use two-step server-side aggregation when we need avg-rating data:
+    // topRated sort, or minRating/maxRating filters — Prisma can't do these natively.
+    const needsRatingStep =
+      query.sortBy === 'topRated' ||
+      query.minRating !== undefined ||
+      query.maxRating !== undefined;
+
+    if (needsRatingStep) {
+      const allMedia = await prisma.media.findMany({
+        where,
+        select: {
+          id: true,
+          createdAt: true,
+          reviews: { where: { status: 'APPROVED' }, select: { rating: true } },
+        },
+      });
+
+      let ranked = allMedia.map((m) => ({
+        id: m.id,
+        createdAt: m.createdAt,
+        reviewCount: m.reviews.length,
+        avg: m.reviews.length
+          ? m.reviews.reduce((s, r) => s + r.rating, 0) / m.reviews.length
+          : 0,
+      }));
+
+      // Apply rating range filter
+      if (query.minRating !== undefined) ranked = ranked.filter((m) => m.avg >= query.minRating!);
+      if (query.maxRating !== undefined) ranked = ranked.filter((m) => m.avg <= query.maxRating!);
+
+      // Sort
+      if (query.sortBy === 'topRated') {
+        ranked.sort((a, b) => b.avg - a.avg);
+      } else if (query.sortBy === 'mostReviewed') {
+        ranked.sort((a, b) => b.reviewCount - a.reviewCount);
+      } else {
+        ranked.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+
+      const filteredTotal = ranked.length;
+      const pageIds = ranked.slice(skip, skip + take).map((m) => m.id);
+
+      const rows = await prisma.media.findMany({
+        where: { id: { in: pageIds } },
+        include: { _count: { select: { reviews: true } } },
+      });
+
+      const data = pageIds.map((id) => rows.find((r) => r.id === id)!).filter(Boolean);
+      return { data, meta: buildMeta(filteredTotal, page, take) };
+    }
 
     const orderBy: Prisma.MediaOrderByWithRelationInput =
       query.sortBy === 'mostReviewed'

@@ -1,13 +1,18 @@
-﻿import { prisma } from '../../config/database.js';
+import { prisma } from '../../config/database.js';
 import { findOrThrow, assertOwnership } from '../../utils/db.js';
 import { CreateCommentDto, UpdateCommentDto } from './comment.interface.js';
+import { AppError } from '../../utils/AppError.js';
 
 const USER_SELECT = { id: true, name: true, image: true } as const;
 
 export class CommentService {
   async create(userId: string, dto: CreateCommentDto) {
-    await findOrThrow(
-      prisma.review.findUnique({ where: { id: dto.reviewId } }),
+    // Load review together with its media pricing so we can gate premium content
+    const review = await findOrThrow(
+      prisma.review.findUnique({
+        where: { id: dto.reviewId },
+        include: { media: { select: { pricing: true } } },
+      }),
       'Review not found',
     );
 
@@ -16,6 +21,20 @@ export class CommentService {
         prisma.comment.findUnique({ where: { id: dto.parentId } }),
         'Parent comment not found',
       );
+    }
+
+    // Comments on premium content require an active paid subscription
+    if (review.media?.pricing === 'premium') {
+      const subscription = await prisma.subscription.findUnique({ where: { userId } });
+      const hasPaidPlan =
+        subscription?.status === 'ACTIVE' && subscription.plan !== 'FREE';
+
+      if (!hasPaidPlan) {
+        throw new AppError(
+          'An active Pro or Annual subscription is required to comment on premium content.',
+          403,
+        );
+      }
     }
 
     return prisma.comment.create({

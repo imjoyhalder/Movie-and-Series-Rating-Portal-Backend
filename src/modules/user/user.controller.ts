@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { userService } from './user.service.js';
 import { sendResponse } from '../../utils/response.js';
 
@@ -7,6 +7,15 @@ export class UserController {
     try {
       const user = await userService.getProfile(req.user!.id);
       sendResponse(res, 200, 'Profile fetched', user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const stats = await userService.getDashboardStats(req.user!.id);
+      sendResponse(res, 200, 'Dashboard stats fetched', stats);
     } catch (error) {
       next(error);
     }

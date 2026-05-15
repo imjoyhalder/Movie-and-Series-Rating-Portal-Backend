@@ -25,6 +25,8 @@ export class MovieController {
         search: req.query.search as string,
         sortBy: req.query.sortBy as MediaFilterQuery['sortBy'],
         pricing: req.query.pricing as string,
+        minRating: req.query.minRating ? Number(req.query.minRating) : undefined,
+        maxRating: req.query.maxRating ? Number(req.query.maxRating) : undefined,
       };
       const result = await movieService.findAll(query);
       sendResponse(res, 200, 'Media fetched', result.data, result.meta);

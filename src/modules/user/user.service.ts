@@ -1,4 +1,4 @@
-﻿import { prisma } from '../../config/database.js';
+import { prisma } from '../../config/database.js';
 import { findOrThrow } from '../../utils/db.js';
 import { UpdateProfileDto } from './user.interface.js';
 
@@ -21,6 +21,49 @@ export class UserService {
       }),
       'User not found',
     );
+  }
+
+  async getDashboardStats(userId: string) {
+    const [reviews, watchlistCount, subscription] = await Promise.all([
+      prisma.review.findMany({
+        where: { userId },
+        select: { rating: true, status: true },
+      }),
+      prisma.watchlist.count({ where: { userId } }),
+      prisma.subscription.findUnique({ where: { userId } }),
+    ]);
+
+    const totalReviews    = reviews.length;
+    const approvedReviews = reviews.filter((r) => r.status === 'APPROVED').length;
+    const pendingReviews  = reviews.filter((r) => r.status === 'PENDING').length;
+    const avgRating =
+      totalReviews > 0
+        ? reviews.reduce((s, r) => s + r.rating, 0) / totalReviews
+        : null;
+
+    const isPaid =
+      subscription?.status === 'ACTIVE' && subscription.plan !== 'FREE';
+
+    const daysRemaining =
+      isPaid && subscription?.currentPeriodEnd
+        ? Math.max(
+            0,
+            Math.ceil(
+              (new Date(subscription.currentPeriodEnd).getTime() - Date.now()) /
+                86_400_000,
+            ),
+          )
+        : null;
+
+    return {
+      totalReviews,
+      approvedReviews,
+      pendingReviews,
+      avgRating,
+      watchlistCount,
+      daysRemaining,
+      subscription,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

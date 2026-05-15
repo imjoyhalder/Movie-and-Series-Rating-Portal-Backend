@@ -4,9 +4,10 @@ import { sendResponse } from '../../utils/response.js';
 import type { ReviewStatus } from '@prisma/client';
 
 export class AdminController {
-  async getDashboardStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const stats = await adminService.getDashboardStats();
+      const period = (req.query.period as string) || '30days';
+      const stats = await adminService.getDashboardStats(period);
       sendResponse(res, 200, 'Dashboard stats fetched', stats);
     } catch (error) {
       next(error);
@@ -89,9 +90,17 @@ export class AdminController {
 
   async getAllMedia(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-      const result = await adminService.getAllMedia(page, limit);
+      const page  = Number(req.query.page)  || 1;
+      const limit = Number(req.query.limit) || 20;
+      const result = await adminService.getAllMedia(
+        page, limit,
+        req.query.search    as string | undefined,
+        req.query.type      as string | undefined,
+        req.query.pricing   as string | undefined,
+        req.query.published as string | undefined,
+        req.query.sortBy    as string | undefined,
+        req.query.sortOrder as string | undefined,
+      );
       sendResponse(res, 200, 'Media fetched', result.data, result.meta);
     } catch (error) {
       next(error);
