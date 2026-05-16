@@ -2,3 +2,5 @@ node_modules
 dist
 .env
 server.log
+pnpm-lock.yaml
+api

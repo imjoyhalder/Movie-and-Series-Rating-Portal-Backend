@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
+    "noCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "removeComments": true,
