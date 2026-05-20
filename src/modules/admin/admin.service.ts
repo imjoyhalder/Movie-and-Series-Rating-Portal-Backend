@@ -18,7 +18,8 @@ export class AdminService {
       prisma.media.count(),
       prisma.review.count(),
       prisma.review.count({ where: { status: 'PENDING' } }),
-      prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+      // Only count paid plans so the card matches actual revenue-generating subs
+      prisma.subscription.count({ where: { status: 'ACTIVE', plan: { in: ['MONTHLY', 'YEARLY'] } } }),
       prisma.subscription.count({ where: { plan: 'MONTHLY', status: 'ACTIVE' } }),
       prisma.subscription.count({ where: { plan: 'YEARLY',  status: 'ACTIVE' } }),
     ]);
@@ -53,7 +54,7 @@ export class AdminService {
         prisma.review.count({ where: { createdAt: { gte: prevStart, lt: startDate } } }),
         prisma.subscription.count({ where: { createdAt: { gte: prevStart, lt: startDate } } }),
         prisma.review.findMany({
-          take: 5,
+          take: 10,
           orderBy: { createdAt: 'desc' },
           include: {
             user:  { select: { id: true, name: true, email: true, image: true } },

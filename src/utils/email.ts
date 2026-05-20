@@ -1,15 +1,34 @@
 ﻿import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465,
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
-  },
-});
+// Lazy singleton — created on first use so Vercel cold starts don't try to
+// open an SMTP connection before the function is actually invoked.
+let _transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (_transporter) return _transporter;
+
+  _transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+    // Prevent cold-start SMTP handshakes from hanging a serverless function
+    connectionTimeout: 10_000,
+    greetingTimeout:   10_000,
+    socketTimeout:     15_000,
+    tls: {
+      // Some SMTP providers (e.g. Gmail App Passwords) need this in certain
+      // serverless environments where the TLS chain isn't fully trusted.
+      rejectUnauthorized: false,
+    },
+  });
+
+  return _transporter;
+}
 
 interface SendMailOptions {
   to: string;
@@ -18,12 +37,21 @@ interface SendMailOptions {
 }
 
 export const sendEmail = async ({ to, subject, html }: SendMailOptions): Promise<void> => {
-  await transporter.sendMail({
-    from: env.EMAIL_FROM,
-    to,
-    subject,
-    html,
-  });
+  const transporter = getTransporter();
+  try {
+    await transporter.sendMail({
+      from: env.EMAIL_FROM,
+      to,
+      subject,
+      html,
+    });
+  } catch (err) {
+    // Reset the cached transporter so the next call gets a fresh connection
+    // instead of retrying on a broken socket.
+    _transporter = null;
+    console.error('[email] sendMail failed:', err);
+    throw err;
+  }
 };
 
 export const passwordResetEmailHtml = (name: string, resetUrl: string): string => `
