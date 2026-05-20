@@ -15,15 +15,34 @@ try {
   const { notFoundHandler } = await import('./middleware/notFound.middleware.js');
   const { default: apiRoutes } = await import('./routes/index.js');
 
+  const allowedOrigins = [
+    env.FRONTEND_URL,
+    'http://localhost:3000',
+  ].filter(Boolean);
+
   const app = express();
 
   app.use(helmet());
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        const isAllowed =
+          allowedOrigins.includes(origin) ||
+          /^https:\/\/.*\.vercel\.app$/.test(origin);
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+      exposedHeaders: ['Set-Cookie'],
     }),
   );
   app.use(cookieParser());
@@ -31,13 +50,7 @@ try {
 
   // Better Auth handles all /api/auth/* routes — must be BEFORE express.json()
   // because Better Auth parses its own request bodies.
-  const betterAuthHandler = toNodeHandler(auth);
-  app.use((req: Request, res: Response, next) => {
-    if (req.path.startsWith('/api/auth')) {
-      return betterAuthHandler(req, res);
-    }
-    return next();
-  });
+  app.all('/api/auth/*splat', toNodeHandler(auth));
 
   app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
   app.use(express.json({ limit: '10mb' }));
