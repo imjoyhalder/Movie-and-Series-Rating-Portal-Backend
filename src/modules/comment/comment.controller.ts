@@ -38,6 +38,19 @@ export class CommentController {
       next(error);
     }
   }
+
+  async toggleLike(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await commentService.toggleLike(
+        String(req.params.id),
+        req.user!.id,
+        req.user!.role === 'ADMIN',
+      );
+      sendResponse(res, 200, result.liked ? 'Comment liked' : 'Comment unliked', result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const commentController = new CommentController();

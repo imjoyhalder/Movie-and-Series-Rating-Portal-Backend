@@ -57,6 +57,7 @@ model User {
   reviews      Review[]
   comments     Comment[]
   likes        ReviewLike[]
+  commentLikes CommentLike[]
   watchlist    Watchlist[]
   subscription Subscription?
 
@@ -183,11 +184,26 @@ model Comment {
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies Comment[] @relation("CommentReplies")
+  likes   CommentLike[]
 
   @@index([reviewId])
   @@index([userId])
   @@index([parentId])
   @@map("comments")
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@map("comment_likes")
 }
 
 model ReviewLike {

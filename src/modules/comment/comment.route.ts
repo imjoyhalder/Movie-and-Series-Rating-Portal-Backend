@@ -11,6 +11,7 @@ router.get('/review/:reviewId', commentController.findByReview.bind(commentContr
 
 // Authenticated + verified users only
 router.post('/', authenticate, requireVerified, validate(createCommentSchema), commentController.create.bind(commentController));
+router.post('/:id/like', authenticate, requireVerified, commentController.toggleLike.bind(commentController));
 router.patch('/:id', authenticate, requireVerified, validate(updateCommentSchema), commentController.update.bind(commentController));
 router.delete('/:id', authenticate, requireVerified, commentController.delete.bind(commentController));
 

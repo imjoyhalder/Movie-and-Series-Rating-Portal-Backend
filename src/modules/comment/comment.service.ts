@@ -82,6 +82,38 @@ export class CommentService {
     assertOwnership(comment.userId, userId, isAdmin);
     await prisma.comment.delete({ where: { id } });
   }
+
+  async toggleLike(commentId: string, userId: string, isAdmin: boolean) {
+    await findOrThrow(prisma.comment.findUnique({ where: { id: commentId } }), 'Comment not found');
+
+    // Admins bypass subscription requirement
+    if (!isAdmin) {
+      const subscription = await prisma.subscription.findUnique({ where: { userId } });
+      const hasPaidPlan =
+        subscription?.status === 'ACTIVE' && subscription.plan !== 'FREE';
+
+      if (!hasPaidPlan) {
+        throw new AppError(
+          'An active Pro or Annual subscription is required to like comments.',
+          403,
+        );
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.commentLike.findUnique({
+        where: { commentId_userId: { commentId, userId } },
+      });
+
+      if (existing) {
+        await tx.commentLike.delete({ where: { id: existing.id } });
+        return { liked: false };
+      }
+
+      await tx.commentLike.create({ data: { commentId, userId } });
+      return { liked: true };
+    });
+  }
 }
 
 export const commentService = new CommentService();
