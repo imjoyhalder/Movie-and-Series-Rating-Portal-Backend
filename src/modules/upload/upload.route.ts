@@ -5,7 +5,18 @@ import { uploadMiddleware } from '../../middleware/upload.middleware.js';
 
 const router = Router();
 
-// POST /api/upload/image — admin-only, multipart/form-data, field name: "image"
+// GET /api/upload/signature
+// Returns a short-lived Cloudinary signed-upload credential.
+// The browser uploads the file DIRECTLY to Cloudinary using this signature.
+router.get(
+  '/signature',
+  authenticate,
+  requireVerified,
+  requireAdmin,
+  uploadController.getSignature.bind(uploadController),
+);
+
+// POST /api/upload/image — legacy server-side upload (fallback)
 router.post(
   '/image',
   authenticate,

@@ -31,8 +31,17 @@ export const env = {
   SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
   SMTP_USER: process.env.SMTP_USER || '',
-  SMTP_PASS: process.env.SMTP_PASS || '',
-  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@movieportal.com',
+  // Gmail App Passwords are shown with spaces (e.g. "dvfu gkxf jbzp geqz")
+  // but the SMTP server expects them without spaces. Strip them here so
+  // copy-pasting directly from Google's UI always works.
+  SMTP_PASS: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
+  // Gmail rejects emails whose From address doesn't match the authenticated
+  // account. Fall back to SMTP_USER so they always match when not overridden.
+  EMAIL_FROM: process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@movieportal.com',
 
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+  CLOUDINARY_API_KEY:    process.env.CLOUDINARY_API_KEY    || '',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
 };

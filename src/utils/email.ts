@@ -8,6 +8,15 @@ let _transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter {
   if (_transporter) return _transporter;
 
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    // Throw early rather than letting Nodemailer fail with an obscure auth error.
+    throw new Error(
+      '[email] SMTP_USER or SMTP_PASS environment variable is not set. ' +
+      'Go to your Vercel dashboard → Project → Settings → Environment Variables and add: ' +
+      'SMTP_USER, SMTP_PASS, EMAIL_FROM, FRONTEND_URL'
+    );
+  }
+
   _transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,

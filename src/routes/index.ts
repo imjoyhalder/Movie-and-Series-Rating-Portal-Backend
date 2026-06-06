@@ -8,6 +8,7 @@ import watchlistRoutes from '../modules/watchlist/watchlist.route.js';
 import paymentRoutes from '../modules/payment/payment.route.js';
 import adminRoutes from '../modules/admin/admin.route.js';
 import uploadRoutes from '../modules/upload/upload.route.js';
+import statsRoutes  from '../modules/stats/stats.route.js';
 
 /**
  * Access control summary:
@@ -44,5 +45,6 @@ router.use('/watchlist', watchlistRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/admin', adminRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/stats',  statsRoutes);   // PUBLIC — platform-wide counts
 
 export default router;
