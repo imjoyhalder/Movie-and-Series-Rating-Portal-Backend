@@ -31,6 +31,21 @@ export class PaymentService {
     );
 
     const existingSub = await prisma.subscription.findUnique({ where: { userId } });
+
+    // Block checkout if the user already has a non-expired paid subscription
+    if (
+      existingSub &&
+      existingSub.status === SubscriptionStatus.ACTIVE &&
+      existingSub.plan !== SubscriptionPlan.FREE &&
+      existingSub.currentPeriodEnd &&
+      existingSub.currentPeriodEnd > new Date()
+    ) {
+      throw new AppError(
+        `You already have an active ${existingSub.plan.toLowerCase()} subscription valid until ${existingSub.currentPeriodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+        400,
+      );
+    }
+
     const customerId =
       existingSub?.stripeCustomerId ??
       (

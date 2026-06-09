@@ -45,7 +45,6 @@ export class UploadController {
       const paramsToSign: Record<string, string | number> = {
         timestamp,
         folder: UPLOAD_FOLDER,
-        transformation: 'c_fill,g_auto,h_750,w_500/q_auto,f_auto',
       };
 
       const signature = cloudinary.utils.api_sign_request(
@@ -57,7 +56,6 @@ export class UploadController {
         signature,
         timestamp,
         folder: UPLOAD_FOLDER,
-        transformation: paramsToSign.transformation,
         cloud_name: env.CLOUDINARY_CLOUD_NAME,
         api_key: env.CLOUDINARY_API_KEY,
       });
