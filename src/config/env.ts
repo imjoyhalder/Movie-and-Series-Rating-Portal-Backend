@@ -41,6 +41,10 @@ export const env = {
 
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
 
+  // Optional comma-separated extra allowed origins for CORS.
+  // e.g. CORS_ORIGINS=https://cineportal.vercel.app,https://www.cineportal.com
+  CORS_ORIGINS: process.env.CORS_ORIGINS || '',
+
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
   CLOUDINARY_API_KEY:    process.env.CLOUDINARY_API_KEY    || '',
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',

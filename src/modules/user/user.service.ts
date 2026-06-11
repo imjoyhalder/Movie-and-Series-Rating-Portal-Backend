@@ -73,6 +73,11 @@ export class UserService {
       select: { id: true, name: true, email: true, image: true, role: true },
     });
   }
+
+  async isEmailTaken(email: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    return user !== null;
+  }
 }
 
 export const userService = new UserService();

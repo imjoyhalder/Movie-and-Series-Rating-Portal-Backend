@@ -16,6 +16,15 @@ router.get(
   uploadController.getSignature.bind(uploadController),
 );
 
+// DELETE /api/upload/image — destroy an uploaded image that was not saved
+router.delete(
+  '/image',
+  authenticate,
+  requireVerified,
+  requireAdmin,
+  uploadController.deleteImage.bind(uploadController),
+);
+
 // POST /api/upload/image — legacy server-side upload (fallback)
 router.post(
   '/image',

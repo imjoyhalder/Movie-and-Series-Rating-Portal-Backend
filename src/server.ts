@@ -4,10 +4,23 @@ import { prisma } from './config/database.js';
 
 const PORT = env.PORT;
 
+async function connectWithRetry(retries = 5, delayMs = 3000): Promise<void> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await prisma.$connect();
+      console.log('Database connected successfully');
+      return;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      console.warn(`Database connection attempt ${attempt}/${retries} failed — retrying in ${delayMs / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function bootstrap() {
   try {
-    await prisma.$connect();
-    console.log('Database connected successfully');
+    await connectWithRetry();
 
     app.listen(PORT, () => {
       console.log(`Server running in ${env.NODE_ENV} mode on port ${PORT}`);

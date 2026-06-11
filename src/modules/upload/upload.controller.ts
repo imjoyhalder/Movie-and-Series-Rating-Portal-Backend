@@ -34,6 +34,19 @@ export class UploadController {
     }
   }
 
+  // DELETE /api/upload/image — destroy an image that was uploaded but not saved
+  async deleteImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { publicId } = req.body as { publicId?: string };
+      if (!publicId) throw new AppError('publicId is required', 400);
+
+      await cloudinary.uploader.destroy(publicId);
+      sendResponse(res, 200, 'Image deleted');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // GET /api/upload/signature — returns a short-lived signed upload credential.
   // The browser uses this to upload the file DIRECTLY to Cloudinary, so the
   // file never travels through the Next.js proxy or this server.  The API

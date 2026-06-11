@@ -6,6 +6,9 @@ import { updateProfileSchema } from './user.validation.js';
 
 const router = Router();
 
+// Public — no auth required
+router.post('/check-email', userController.checkEmail.bind(userController));
+
 router.use(authenticate, requireVerified);
 
 router.get('/profile',         userController.getProfile.bind(userController));

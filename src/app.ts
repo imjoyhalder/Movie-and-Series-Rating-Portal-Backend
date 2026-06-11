@@ -15,10 +15,23 @@ try {
   const { notFoundHandler } = await import('./middleware/notFound.middleware.js');
   const { default: apiRoutes } = await import('./routes/index.js');
 
+  // Explicit origins: FRONTEND_URL + any extras from CORS_ORIGINS env var
+  const extraOrigins = env.CORS_ORIGINS
+    ? env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+
   const allowedOrigins = [
     env.FRONTEND_URL,
     'http://localhost:3000',
+    'http://localhost:3001',
+    ...extraOrigins,
   ].filter(Boolean);
+
+  // Wildcard pattern for common deployment platforms
+  const deploymentPattern =
+    /^https:\/\/.+\.(vercel\.app|railway\.app|onrender\.com|netlify\.app|up\.railway\.app)$/;
+
+  console.log('[CORS] Allowed explicit origins:', allowedOrigins);
 
   const app = express();
 
@@ -26,17 +39,18 @@ try {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+        // Allow requests with no origin (Postman, curl, mobile apps, SSR)
         if (!origin) return callback(null, true);
 
         const isAllowed =
           allowedOrigins.includes(origin) ||
-          /^https:\/\/.*\.vercel\.app$/.test(origin);
+          deploymentPattern.test(origin);
 
         if (isAllowed) {
           callback(null, true);
         } else {
-          callback(new Error(`Origin ${origin} not allowed by CORS`));
+          console.warn('[CORS] Blocked origin:', origin);
+          callback(new Error(`CORS: origin "${origin}" is not allowed`));
         }
       },
       credentials: true,
